@@ -20,6 +20,9 @@ import {
   Check,
   Save,
   Loader2,
+  Volume2,
+  ExternalLink,
+  Radio,
 } from "lucide-react";
 import { dashboard as dashApi, appointments as appsApi, doctors as doctorsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -38,6 +41,7 @@ export default function AdminDashboardPage() {
   const [autoApprove, setAutoApprove] = useState<boolean>(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState("");
+  const [advancingQueue, setAdvancingQueue] = useState(false);
 
   const loadDashboard = async () => {
     try {
@@ -47,17 +51,18 @@ export default function AdminDashboardPage() {
       ]);
       if (s.status === "fulfilled") setStats(s.value);
       if (r.status === "fulfilled" && Array.isArray(r.value)) {
-        // If doctor, filter to doctor's appointments
-        if (userRole === "DOCTOR" && user?.doctorId) {
+        // If doctor or assistant, filter to linked doctor's appointments
+        if ((userRole === "DOCTOR" || userRole === "DOCTOR_ASSISTANT") && user?.doctorId) {
           setRecentApps(r.value.filter((a) => a.doctorId === user.doctorId));
         } else {
           setRecentApps(r.value);
         }
       }
 
-      // If doctor role, fetch doctor profile to load slot duration & auto-approve setting
-      if (userRole === "DOCTOR" && user?.doctorId) {
-        const doc = await doctorsApi.getById(user.doctorId).catch(() => null);
+      // Fetch linked doctor profile
+      const docIdToLoad = user?.doctorId || (userRole === "DOCTOR" ? doctorProfile?.id : null);
+      if (docIdToLoad) {
+        const doc = await doctorsApi.getById(docIdToLoad).catch(() => null);
         if (doc) {
           setDoctorProfile(doc);
           setSlotDuration(doc.slotDuration || 30);
@@ -68,6 +73,21 @@ export default function AdminDashboardPage() {
       console.error("Dashboard data load error", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAdvanceQueue = async (action: string) => {
+    const docId = doctorProfile?.id || user?.doctorId;
+    if (!docId) return;
+    setAdvancingQueue(true);
+    try {
+      await appsApi.advanceLiveQueue({ doctorId: docId, action });
+      await loadDashboard();
+    } catch (err: any) {
+      console.error("Failed to advance queue", err);
+      alert(err.message || "Failed to update queue");
+    } finally {
+      setAdvancingQueue(false);
     }
   };
 
@@ -166,6 +186,109 @@ export default function AdminDashboardPage() {
           </Button>
         </div>
       </div>
+
+      {/* ─── LIVE CHAMBER QUEUE CONTROL DESK (Doctor & Assistant) ─── */}
+      {(userRole === "DOCTOR" || userRole === "DOCTOR_ASSISTANT") && (
+        <Card className="rounded-3xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-background to-emerald-500/10 shadow-md">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-primary/20">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  <h3 className="font-extrabold text-base text-foreground tracking-tight">
+                    Live Chamber Queue Desk (লাইভ সিরিয়াল ডেক্স)
+                  </h3>
+                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    Active Chamber Control
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Call next patient, advance serial, or pause chamber. Patients can track their serial and estimated wait time live on their phone!
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button asChild variant="outline" size="sm" className="rounded-xl text-xs gap-1.5 bg-background shadow-xs">
+                  <Link href={`/live-queue?doctorId=${doctorProfile?.id || user?.doctorId || ""}`} target="_blank">
+                    <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Patient Live Screen
+                  </Link>
+                </Button>
+                {userRole === "DOCTOR" && (
+                  <Button asChild variant="outline" size="sm" className="rounded-xl text-xs">
+                    <Link href="/admin/assistants">
+                      <ShieldCheck className="h-3.5 w-3.5 text-indigo-600 mr-1" /> Assistants
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+              {/* Current Serial */}
+              <div className="p-4 rounded-2xl bg-card border shadow-xs space-y-1">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                  Current Serving Token (বর্তমান রোগী)
+                </span>
+                <p className="text-3xl sm:text-4xl font-black text-emerald-600">
+                  #{doctorProfile?.currentServingSerial || 0}
+                </p>
+                <span className="text-[11px] text-muted-foreground block">
+                  {doctorProfile?.chamberStatus === "BREAK" ? "Chamber Paused / Break" : "Inside Consultation Room"}
+                </span>
+              </div>
+
+              {/* Next In Line */}
+              <div className="p-4 rounded-2xl bg-card border shadow-xs space-y-1">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                  Next In Line (পরবর্তী সিরিয়াল)
+                </span>
+                <p className="text-3xl sm:text-4xl font-black text-primary">
+                  #{(doctorProfile?.currentServingSerial || 0) + 1}
+                </p>
+                <span className="text-[11px] text-muted-foreground block">
+                  Waiting outside chamber door
+                </span>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="p-4 rounded-2xl bg-card border shadow-xs flex flex-col justify-center gap-2">
+                <Button
+                  onClick={() => handleAdvanceQueue("NEXT")}
+                  disabled={advancingQueue}
+                  className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs"
+                >
+                  <Volume2 className="mr-1.5 h-4 w-4" /> Call Next Patient (Serial #{(doctorProfile?.currentServingSerial || 0) + 1})
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAdvanceQueue("PREV")}
+                    disabled={advancingQueue || (doctorProfile?.currentServingSerial || 0) <= 0}
+                    className="flex-1 text-xs rounded-xl"
+                  >
+                    ⏪ Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAdvanceQueue("BREAK")}
+                    disabled={advancingQueue}
+                    className={`flex-1 text-xs rounded-xl ${
+                      doctorProfile?.chamberStatus === "BREAK" ? "bg-amber-100 text-amber-800 font-bold" : ""
+                    }`}
+                  >
+                    {doctorProfile?.chamberStatus === "BREAK" ? "Resume Chamber" : "Take Break"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Doctor Slot Duration & Auto-Approve Settings Card (DOCTOR ONLY) */}
       {userRole === "DOCTOR" && doctorProfile && (

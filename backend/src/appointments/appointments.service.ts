@@ -43,6 +43,21 @@ export class AppointmentsService {
     const appointmentDate = new Date(dto.date);
     const status = doctor.autoApprove ? 'CONFIRMED' : 'PENDING';
 
+    // Compute serial number for this doctor on this day
+    const startOfDay = new Date(appointmentDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(appointmentDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingCount = await this.prisma.appointment.count({
+      where: {
+        doctorId: doctor.id,
+        date: { gte: startOfDay, lte: endOfDay },
+        status: { not: 'CANCELLED' },
+      },
+    });
+    const serialNumber = existingCount + 1;
+
     return this.prisma.appointment.create({
       data: {
         patientId: patient.id,
@@ -52,6 +67,7 @@ export class AppointmentsService {
         notes: dto.notes,
         type: dto.type || 'NEW',
         status,
+        serialNumber,
       },
       include: {
         doctor: {
@@ -63,15 +79,31 @@ export class AppointmentsService {
   }
 
   async create(dto: CreateAppointmentDto) {
+    const appointmentDate = new Date(dto.date);
+    const startOfDay = new Date(appointmentDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(appointmentDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingCount = await this.prisma.appointment.count({
+      where: {
+        doctorId: dto.doctorId,
+        date: { gte: startOfDay, lte: endOfDay },
+        status: { not: 'CANCELLED' },
+      },
+    });
+    const serialNumber = existingCount + 1;
+
     return this.prisma.appointment.create({
       data: {
         patientId: dto.patientId,
         doctorId: dto.doctorId,
-        date: new Date(dto.date),
+        date: appointmentDate,
         timeSlot: dto.timeSlot,
         status: dto.status || 'PENDING',
         type: dto.type || 'NEW',
         notes: dto.notes,
+        serialNumber,
       },
       include: {
         doctor: true,
@@ -115,7 +147,7 @@ export class AppointmentsService {
         },
         patient: true,
       },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'asc' }, { serialNumber: 'asc' }],
     });
   }
 
@@ -208,7 +240,7 @@ export class AppointmentsService {
       where: {
         doctorId,
         date: { gte: startOfDay, lte: endOfDay },
-        status: { in: ['PENDING', 'CONFIRMED'] },
+        status: { in: ['PENDING', 'CONFIRMED', 'SERVING'] },
       },
       select: { timeSlot: true },
     });
@@ -225,5 +257,281 @@ export class AppointmentsService {
       schedule,
       slots: availableSlots,
     };
+  }
+
+  // ─── Real-Time Chamber Queue & Live Serial Tracking ───
+
+  async getLiveQueue(params: {
+    doctorId?: string;
+    appointmentId?: string;
+    phone?: string;
+    date?: string;
+  }) {
+    const today = params.date ? new Date(params.date) : new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    let targetAppointment: any = null;
+
+    // 1. If appointmentId is provided
+    if (params.appointmentId) {
+      targetAppointment = await this.prisma.appointment.findUnique({
+        where: { id: params.appointmentId },
+        include: {
+          doctor: { include: { department: true } },
+          patient: true,
+        },
+      });
+    }
+
+    // 2. If phone is provided, find today's latest appointment for this phone
+    if (!targetAppointment && params.phone) {
+      const patient = await this.prisma.patient.findFirst({
+        where: { phone: params.phone.trim() },
+      });
+      if (patient) {
+        targetAppointment = await this.prisma.appointment.findFirst({
+          where: {
+            patientId: patient.id,
+            ...(params.doctorId ? { doctorId: params.doctorId } : {}),
+            date: { gte: startOfDay, lte: endOfDay },
+          },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            doctor: { include: { department: true } },
+            patient: true,
+          },
+        });
+      }
+    }
+
+    // Resolve doctorId
+    const doctorId = targetAppointment ? targetAppointment.doctorId : params.doctorId;
+    if (!doctorId) {
+      // If neither is provided, fetch first active doctor
+      const defaultDoc = await this.prisma.doctor.findFirst({
+        where: { isActive: true },
+        include: { department: true },
+      });
+      if (!defaultDoc) {
+        throw new NotFoundException('No active doctors found');
+      }
+      return this.formatChamberQueue(defaultDoc, startOfDay, endOfDay, null);
+    }
+
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+      include: { department: true },
+    });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+
+    return this.formatChamberQueue(doctor, startOfDay, endOfDay, targetAppointment);
+  }
+
+  private async formatChamberQueue(
+    doctor: any,
+    startOfDay: Date,
+    endOfDay: Date,
+    myAppointment: any,
+  ) {
+    const slotDuration = doctor.slotDuration || 15;
+    const currentServingSerial = doctor.currentServingSerial || 0;
+    const chamberStatus = doctor.chamberStatus || 'ACTIVE';
+
+    // Fetch all non-cancelled appointments for today
+    const appointmentsToday = await this.prisma.appointment.findMany({
+      where: {
+        doctorId: doctor.id,
+        date: { gte: startOfDay, lte: endOfDay },
+        status: { not: 'CANCELLED' },
+      },
+      include: { patient: true },
+      orderBy: [{ serialNumber: 'asc' }, { timeSlot: 'asc' }],
+    });
+
+    const totalPatientsToday = appointmentsToday.length;
+    const completedCount = appointmentsToday.filter(
+      (a) => a.status === 'COMPLETED' || (a.serialNumber && a.serialNumber < currentServingSerial),
+    ).length;
+
+    // Find who is currently serving
+    const currentlyServingAppointment = appointmentsToday.find(
+      (a) => a.serialNumber === currentServingSerial || a.status === 'SERVING',
+    );
+
+    // Calculate details for myAppointment if provided
+    let mySerial = myAppointment?.serialNumber || null;
+    let patientsAhead = 0;
+    let estimatedWaitMinutes = 0;
+    let isCurrentlyServing = false;
+    let isNext = false;
+    let isCompleted = false;
+
+    if (myAppointment) {
+      // If no serialNumber was explicitly assigned, find index + 1
+      if (!mySerial) {
+        const idx = appointmentsToday.findIndex((a) => a.id === myAppointment.id);
+        mySerial = idx >= 0 ? idx + 1 : 1;
+      }
+
+      if (currentServingSerial > 0) {
+        if (mySerial === currentServingSerial && chamberStatus === 'ACTIVE') {
+          isCurrentlyServing = true;
+          patientsAhead = 0;
+          estimatedWaitMinutes = 0;
+        } else if (mySerial < currentServingSerial || myAppointment.status === 'COMPLETED') {
+          isCompleted = true;
+          patientsAhead = 0;
+          estimatedWaitMinutes = 0;
+        } else {
+          patientsAhead = Math.max(0, mySerial - currentServingSerial);
+          estimatedWaitMinutes = patientsAhead * slotDuration;
+          if (patientsAhead === 1) isNext = true;
+        }
+      } else {
+        // Doctor hasn't started yet
+        patientsAhead = mySerial;
+        estimatedWaitMinutes = mySerial * slotDuration;
+        if (mySerial === 1) isNext = true;
+      }
+    }
+
+    // Mask patient names for public privacy (e.g. "Md. Rahim" -> "M***m", Serial #1)
+    const queueList = appointmentsToday.map((a, idx) => {
+      const serial = a.serialNumber || idx + 1;
+      const rawName = a.patient?.name || 'Patient';
+      const maskedName =
+        rawName.length > 2
+          ? `${rawName.charAt(0)}***${rawName.charAt(rawName.length - 1)}`
+          : rawName;
+
+      return {
+        id: a.id,
+        serialNumber: serial,
+        timeSlot: a.timeSlot,
+        status: a.status,
+        maskedName,
+        isServing: serial === currentServingSerial && chamberStatus === 'ACTIVE',
+        isCompleted: a.status === 'COMPLETED' || (currentServingSerial > 0 && serial < currentServingSerial),
+      };
+    });
+
+    return {
+      doctor: {
+        id: doctor.id,
+        name: doctor.name,
+        title: doctor.title,
+        specialization: doctor.specialization,
+        department: doctor.department?.name,
+        image: doctor.image,
+        chamberAddress: doctor.chamberAddress,
+        phone: doctor.phone,
+        slotDuration,
+        currentServingSerial,
+        chamberStatus,
+      },
+      currentlyServing: currentlyServingAppointment
+        ? {
+            serialNumber: currentlyServingAppointment.serialNumber || currentServingSerial,
+            timeSlot: currentlyServingAppointment.timeSlot,
+            patientName: currentlyServingAppointment.patient?.name,
+          }
+        : currentServingSerial > 0
+        ? { serialNumber: currentServingSerial, timeSlot: 'In Progress', patientName: `Serial #${currentServingSerial}` }
+        : null,
+      stats: {
+        totalPatientsToday,
+        completedCount,
+        waitingCount: Math.max(0, totalPatientsToday - completedCount),
+      },
+      myQueueStatus: myAppointment
+        ? {
+            appointmentId: myAppointment.id,
+            patientName: myAppointment.patient?.name,
+            patientPhone: myAppointment.patient?.phone,
+            yourSerial: mySerial,
+            timeSlot: myAppointment.timeSlot,
+            appointmentStatus: myAppointment.status,
+            patientsAhead,
+            estimatedWaitMinutes,
+            isCurrentlyServing,
+            isNext,
+            isCompleted,
+            message: isCurrentlyServing
+              ? '🟢 You are currently in consultation with the doctor!'
+              : isNext
+              ? '🔥 You are NEXT in line! Please stand by near the chamber.'
+              : isCompleted
+              ? '✓ Consultation completed.'
+              : `${patientsAhead} patient(s) ahead of you. Estimated wait: ~${estimatedWaitMinutes} minutes.`,
+          }
+        : null,
+      queueList,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  // ─── Advance / Manage Live Chamber Queue (Doctor or Assistant) ───
+
+  async advanceLiveQueue(doctorId: string, action: string, targetSerial?: number) {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+    });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+
+    const today = new Date();
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    let nextSerial = doctor.currentServingSerial || 0;
+    let nextStatus = doctor.chamberStatus || 'ACTIVE';
+
+    if (action === 'NEXT') {
+      // Mark current serving appointment as COMPLETED
+      if (nextSerial > 0) {
+        await this.prisma.appointment.updateMany({
+          where: {
+            doctorId,
+            date: { gte: startOfDay, lte: endOfDay },
+            serialNumber: nextSerial,
+          },
+          data: { status: 'COMPLETED' },
+        });
+      }
+
+      nextSerial = nextSerial + 1;
+      nextStatus = 'ACTIVE';
+
+      // Mark new serial appointment as SERVING
+      await this.prisma.appointment.updateMany({
+        where: {
+          doctorId,
+          date: { gte: startOfDay, lte: endOfDay },
+          serialNumber: nextSerial,
+        },
+        data: { status: 'SERVING' },
+      });
+    } else if (action === 'PREV') {
+      nextSerial = Math.max(0, nextSerial - 1);
+    } else if (action === 'BREAK') {
+      nextStatus = doctor.chamberStatus === 'BREAK' ? 'ACTIVE' : 'BREAK';
+    } else if (action === 'SET' && typeof targetSerial === 'number') {
+      nextSerial = Math.max(0, targetSerial);
+    }
+
+    const updatedDoctor = await this.prisma.doctor.update({
+      where: { id: doctorId },
+      data: {
+        currentServingSerial: nextSerial,
+        chamberStatus: nextStatus,
+      },
+      include: { department: true },
+    });
+
+    return this.formatChamberQueue(updatedDoctor, startOfDay, endOfDay, null);
   }
 }

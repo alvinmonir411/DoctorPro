@@ -53,6 +53,11 @@ export function PublicFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/live-queue" className="hover:text-white transition-colors flex items-center gap-1.5 text-emerald-400 font-semibold">
+                  <ArrowRight className="h-3 w-3 text-emerald-400" /> Live Serial & Queue Tracker
+                </Link>
+              </li>
+              <li>
                 <Link href="/blog" className="hover:text-white transition-colors flex items-center gap-1.5">
                   <ArrowRight className="h-3 w-3 text-sky-400" /> Health Tips & Stories
                 </Link>

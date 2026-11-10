@@ -37,6 +37,34 @@ export class AppointmentsController {
     return this.appointmentsService.getAvailableSlots(doctorId, date);
   }
 
+  @Public()
+  @Get('live-queue')
+  getLiveQueue(
+    @Query('doctorId') doctorId?: string,
+    @Query('appointmentId') appointmentId?: string,
+    @Query('phone') phone?: string,
+    @Query('date') date?: string,
+  ) {
+    return this.appointmentsService.getLiveQueue({
+      doctorId,
+      appointmentId,
+      phone,
+      date,
+    });
+  }
+
+  @Post('live-queue/advance')
+  @UseGuards(JwtAuthGuard)
+  advanceLiveQueue(
+    @Body() body: { doctorId: string; action: string; targetSerial?: number },
+  ) {
+    return this.appointmentsService.advanceLiveQueue(
+      body.doctorId,
+      body.action,
+      body.targetSerial,
+    );
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Body() dto: CreateAppointmentDto) {

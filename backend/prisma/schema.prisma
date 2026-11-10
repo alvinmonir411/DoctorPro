@@ -57,10 +57,12 @@ model Doctor {
   chamberAddress   String?
   phone            String?
   email            String?
-  consultationFee  Float    @default(0)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  consultationFee      Float    @default(0)
+  currentServingSerial Int      @default(0) // Live chamber queue currently serving token
+  chamberStatus        String   @default("ACTIVE") // ACTIVE | BREAK | CLOSED
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   department   Department    @relation(fields: [departmentId], references: [id])
   schedules    Schedule[]
@@ -143,16 +145,17 @@ model Patient {
 }
 
 model Appointment {
-  id        String   @id @default(uuid())
-  patientId String
-  doctorId  String
-  date      DateTime
-  timeSlot  String   // "09:00-09:30"
-  status    String   @default("PENDING") // PENDING | CONFIRMED | COMPLETED | CANCELLED
-  type      String   @default("NEW") // NEW | FOLLOW_UP
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  patientId    String
+  doctorId     String
+  date         DateTime
+  timeSlot     String   // "09:00-09:30"
+  serialNumber Int?     // Assigned queue token serial (1, 2, 3...)
+  status       String   @default("PENDING") // PENDING | CONFIRMED | SERVING | COMPLETED | CANCELLED
+  type         String   @default("NEW") // NEW | FOLLOW_UP
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   patient Patient @relation(fields: [patientId], references: [id])
   doctor  Doctor  @relation(fields: [doctorId], references: [id])
@@ -161,6 +164,7 @@ model Appointment {
   @@index([doctorId])
   @@index([date])
   @@index([status])
+  @@index([serialNumber])
 }
 
 model BlogPost {

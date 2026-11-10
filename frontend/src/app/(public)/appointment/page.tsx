@@ -177,6 +177,12 @@ function AppointmentContent() {
               </div>
 
               <div className="bg-background rounded-2xl p-5 border text-left text-xs space-y-2.5">
+                <div className="flex justify-between border-b pb-2 items-center">
+                  <span className="text-muted-foreground font-medium">Your Serial Number:</span>
+                  <span className="font-black text-lg text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-0.5 rounded-xl border border-emerald-200">
+                    #{successBooking?.serialNumber || 1}
+                  </span>
+                </div>
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-muted-foreground">Patient:</span>
                   <span className="font-semibold text-foreground">{patientName}</span>
@@ -211,13 +217,23 @@ function AppointmentContent() {
                 </div>
               </div>
 
-              <div className="pt-2 flex flex-col gap-2">
-                <Button asChild className="w-full bg-primary hover:bg-primary/90 rounded-xl">
+              <div className="pt-2 flex flex-col gap-2.5">
+                <Button asChild className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-sm text-xs">
+                  <Link href={`/live-queue?appointmentId=${successBooking?.id || ""}&phone=${patientPhone}`}>
+                    <span className="relative flex h-2.5 w-2.5 mr-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                    </span>
+                    Track Live Chamber Queue & Wait Time →
+                  </Link>
+                </Button>
+
+                <Button asChild variant="outline" className="w-full rounded-xl">
                   <Link href="/">Back to Home</Link>
                 </Button>
                 <Button
-                  variant="outline"
-                  className="w-full rounded-xl"
+                  variant="ghost"
+                  className="w-full rounded-xl text-xs text-muted-foreground"
                   onClick={() => {
                     setSuccessBooking(null);
                     setPatientName("");

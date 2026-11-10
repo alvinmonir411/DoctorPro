@@ -179,6 +179,18 @@ export const appointments = {
 
   getAvailableSlots: (doctorId: string, date: string) =>
     get<unknown>(`/appointments/available-slots?doctorId=${doctorId}&date=${date}`),
+
+  getLiveQueue: (params?: { doctorId?: string; appointmentId?: string; phone?: string; date?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.doctorId) q.set("doctorId", params.doctorId);
+    if (params?.appointmentId) q.set("appointmentId", params.appointmentId);
+    if (params?.phone) q.set("phone", params.phone);
+    if (params?.date) q.set("date", params.date);
+    return get<any>(`/appointments/live-queue?${q.toString()}`);
+  },
+
+  advanceLiveQueue: (data: { doctorId: string; action: string; targetSerial?: number }) =>
+    post<any>("/appointments/live-queue/advance", data),
 };
 
 // ---------------------------------------------------------------------------
