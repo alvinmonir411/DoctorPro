@@ -32,10 +32,8 @@ import {
   Sparkles,
   Maximize2,
   User,
-  GraduationCap,
-  MapPin,
-  Phone,
   Eye,
+  Calendar,
 } from "lucide-react";
 import { doctors as doctorsApi, departments as deptsApi, upload as uploadApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
@@ -48,6 +46,28 @@ const SLOT_OPTIONS = [
   { value: 45, label: "45 Min", desc: "Detailed" },
   { value: 60, label: "60 Min", desc: "1 Hour" },
 ];
+
+interface DaySchedule {
+  dayOfWeek: number;
+  name: string;
+  short: string;
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+  maxPatients: number;
+}
+
+const DEFAULT_WEEKLY_SCHEDULE: DaySchedule[] = [
+  { dayOfWeek: 6, name: "Saturday (শনিবার)", short: "Sat", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 0, name: "Sunday (রবিবার)", short: "Sun", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 1, name: "Monday (সোমবার)", short: "Mon", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 2, name: "Tuesday (মঙ্গলবার)", short: "Tue", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 3, name: "Wednesday (বুধবার)", short: "Wed", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 4, name: "Thursday (বৃহস্পতিবার)", short: "Thu", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 5, name: "Friday (শুক্রবার)", short: "Fri", enabled: false, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+];
+
+const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function AdminDoctorsPage() {
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
@@ -78,6 +98,9 @@ export default function AdminDoctorsPage() {
   // Slot duration & Auto approve
   const [slotDuration, setSlotDuration] = useState<number>(30);
   const [autoApprove, setAutoApprove] = useState<boolean>(false);
+
+  // Weekly visiting days schedule
+  const [weeklySchedule, setWeeklySchedule] = useState<DaySchedule[]>(DEFAULT_WEEKLY_SCHEDULE);
 
   // Photo & Certificate states
   const [image, setImage] = useState("");
@@ -131,6 +154,7 @@ export default function AdminDoctorsPage() {
     setBio("");
     setSlotDuration(30);
     setAutoApprove(false);
+    setWeeklySchedule(DEFAULT_WEEKLY_SCHEDULE);
     setImage("");
     setCertificate("");
     setCertificateName("");
@@ -160,8 +184,53 @@ export default function AdminDoctorsPage() {
         ? doc.certificate.split("/").pop() || "Medical Certificate"
         : ""
     );
+
+    // Populate existing weekly schedules
+    if (doc.schedules && Array.isArray(doc.schedules) && doc.schedules.length > 0) {
+      const scheduleMap = new Map(doc.schedules.map((s: any) => [s.dayOfWeek, s]));
+      setWeeklySchedule(
+        DEFAULT_WEEKLY_SCHEDULE.map((d) => {
+          const match: any = scheduleMap.get(d.dayOfWeek);
+          if (match) {
+            return {
+              ...d,
+              enabled: match.isActive !== false,
+              startTime: match.startTime || "09:00",
+              endTime: match.endTime || "14:00",
+              maxPatients: match.maxPatients || 20,
+            };
+          }
+          return { ...d, enabled: false };
+        })
+      );
+    } else {
+      setWeeklySchedule(DEFAULT_WEEKLY_SCHEDULE);
+    }
+
     setFormError("");
     setModalOpen(true);
+  };
+
+  const updateDaySchedule = (idx: number, updates: Partial<DaySchedule>) => {
+    setWeeklySchedule((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...updates };
+      return next;
+    });
+  };
+
+  const applyPreset = (preset: "SAT_THU" | "ALL" | "MON_FRI") => {
+    setWeeklySchedule((prev) =>
+      prev.map((d) => {
+        if (preset === "SAT_THU") {
+          return { ...d, enabled: d.dayOfWeek !== 5 }; // Friday off
+        }
+        if (preset === "MON_FRI") {
+          return { ...d, enabled: d.dayOfWeek >= 1 && d.dayOfWeek <= 5 };
+        }
+        return { ...d, enabled: true }; // All 7 days
+      })
+    );
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -230,6 +299,21 @@ export default function AdminDoctorsPage() {
       return;
     }
 
+    const activeSchedules = weeklySchedule
+      .filter((s) => s.enabled)
+      .map((s) => ({
+        dayOfWeek: s.dayOfWeek,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        maxPatients: Number(s.maxPatients) || 20,
+        isActive: true,
+      }));
+
+    if (activeSchedules.length === 0) {
+      setFormError("Please select at least one available day of the week for the doctor.");
+      return;
+    }
+
     // Resolve department
     let finalDeptId = departmentId;
     if (customDeptName.trim()) {
@@ -256,24 +340,15 @@ export default function AdminDoctorsPage() {
         autoApprove: Boolean(autoApprove),
         image: image.trim() || undefined,
         certificate: certificate.trim() || undefined,
+        schedules: activeSchedules,
       };
 
       if (editingDoctor) {
         await doctorsApi.update(editingDoctor.id, payload);
-        setSuccessMsg("Doctor profile updated successfully!");
+        setSuccessMsg("Doctor profile & weekly schedule updated successfully!");
       } else {
-        await doctorsApi.create({
-          ...payload,
-          schedules: [
-            { dayOfWeek: 0, startTime: "09:00", endTime: "14:00" },
-            { dayOfWeek: 1, startTime: "09:00", endTime: "14:00" },
-            { dayOfWeek: 2, startTime: "09:00", endTime: "14:00" },
-            { dayOfWeek: 3, startTime: "09:00", endTime: "14:00" },
-            { dayOfWeek: 4, startTime: "09:00", endTime: "14:00" },
-            { dayOfWeek: 6, startTime: "09:00", endTime: "14:00" },
-          ],
-        });
-        setSuccessMsg("New doctor added successfully!");
+        await doctorsApi.create(payload);
+        setSuccessMsg("New doctor & schedule added successfully!");
       }
 
       setModalOpen(false);
@@ -334,7 +409,7 @@ export default function AdminDoctorsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Doctor Management</h1>
           <p className="text-xs text-muted-foreground">
-            Manage doctor profiles, portrait photos, BMDC certificates, slot intervals (10–60 min), and auto-approval
+            Manage doctor profiles, portrait photos, BMDC certificates, available visiting days, slots (10–60 min), and auto-approval
           </p>
         </div>
 
@@ -374,6 +449,7 @@ export default function AdminDoctorsPage() {
                   <tr>
                     <th className="p-3">Doctor</th>
                     <th className="p-3">Specialization</th>
+                    <th className="p-3">Visiting Days</th>
                     <th className="p-3">Slot Duration</th>
                     <th className="p-3">Booking Approval</th>
                     <th className="p-3">Fee</th>
@@ -414,6 +490,25 @@ export default function AdminDoctorsPage() {
                         </div>
                       </td>
                       <td className="p-3 font-medium text-foreground">{doc.specialization}</td>
+                      <td className="p-3">
+                        {doc.schedules && doc.schedules.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-[150px]">
+                            {doc.schedules
+                              .filter((s: any) => s.isActive !== false)
+                              .map((s: any) => (
+                                <span
+                                  key={s.id || s.dayOfWeek}
+                                  className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-semibold text-[10px]"
+                                  title={`${DAY_NAMES_SHORT[s.dayOfWeek]}: ${s.startTime} - ${s.endTime}`}
+                                >
+                                  {DAY_NAMES_SHORT[s.dayOfWeek]}
+                                </span>
+                              ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground/60 text-[10px]">No days set</span>
+                        )}
+                      </td>
                       <td className="p-3">
                         <span className="inline-flex items-center gap-1 font-semibold text-foreground">
                           <Clock className="h-3 w-3 text-primary" /> {doc.slotDuration || 30} min
@@ -471,7 +566,7 @@ export default function AdminDoctorsPage() {
                             variant="ghost"
                             className="h-7 w-7 text-muted-foreground hover:text-foreground"
                             onClick={() => openEditModal(doc)}
-                            title="Edit Doctor"
+                            title="Edit Doctor & Visiting Days"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -496,7 +591,7 @@ export default function AdminDoctorsPage() {
               <Stethoscope className="h-10 w-10 text-muted-foreground/40 mx-auto" />
               <p className="font-semibold text-sm text-foreground">No Doctors Registered Yet</p>
               <p className="max-w-sm mx-auto">
-                Click below to add your practice doctors with profile photo, BMDC certificate, slot duration, and visiting hours.
+                Click below to add your practice doctors with profile photo, BMDC certificate, visiting days, and hours.
               </p>
               <Button onClick={openAddModal} size="sm" className="bg-primary hover:bg-primary/90 rounded-xl text-xs">
                 <Plus className="mr-1 h-3.5 w-3.5" /> Add Doctor Now
@@ -506,13 +601,13 @@ export default function AdminDoctorsPage() {
         </CardContent>
       </Card>
 
-      {/* Add / Edit Doctor Modal - Redesigned to be highly user-friendly */}
+      {/* Add / Edit Doctor Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
+        <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
           <DialogHeader className="border-b pb-3">
             <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
               <Stethoscope className="h-5 w-5 text-primary" />
-              {editingDoctor ? `Edit Profile: ${editingDoctor.name}` : "Add New Doctor to Practice"}
+              {editingDoctor ? `Edit Profile & Available Days: ${editingDoctor.name}` : "Add New Doctor to Practice"}
             </DialogTitle>
           </DialogHeader>
 
@@ -563,7 +658,7 @@ export default function AdminDoctorsPage() {
                     <div className="space-y-1.5 flex-1 min-w-0">
                       <Label className="text-xs font-bold text-foreground">Doctor Portrait Photo</Label>
                       <p className="text-[10px] text-muted-foreground leading-tight">
-                        Face is automatically framed from the top. Click thumbnail to inspect full picture.
+                        Face is automatically framed from top. Click thumbnail to inspect full picture.
                       </p>
                       <div className="pt-1 flex flex-wrap items-center gap-1.5">
                         <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs">
@@ -724,10 +819,140 @@ export default function AdminDoctorsPage() {
               </div>
             </div>
 
-            {/* 3. Doctor Information */}
+            {/* 3. Weekly Availability & Visiting Days (সপ্তাহে উপস্থিতির দিন ও সময়) */}
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2.5">
+                <div>
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4 text-primary" /> 3. Weekly Visiting Days & Hours (ডাক্তার কোন কোন দিন চেম্বারে বসবেন)
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    ডাক্তার সপ্তাহের যেসব দিন উপস্থিত থাকবেন সেগুলো অন (On) রাখুন এবং শুরু ও শেষ সময় নির্ধারণ করুন।
+                  </p>
+                </div>
+
+                {/* Quick Preset Buttons */}
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] rounded-lg"
+                    onClick={() => applyPreset("SAT_THU")}
+                  >
+                    Sat – Thu (Default)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] rounded-lg"
+                    onClick={() => applyPreset("ALL")}
+                  >
+                    All 7 Days
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] rounded-lg"
+                    onClick={() => applyPreset("MON_FRI")}
+                  >
+                    Mon – Fri
+                  </Button>
+                </div>
+              </div>
+
+              {/* Day-by-Day List */}
+              <div className="space-y-2">
+                {weeklySchedule.map((day, idx) => (
+                  <div
+                    key={day.dayOfWeek}
+                    className={`p-3 rounded-xl border transition-all ${
+                      day.enabled
+                        ? "bg-background border-border/80 shadow-2xs"
+                        : "bg-muted/20 border-dashed border-border/60 opacity-60"
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      {/* Day Toggle & Name */}
+                      <div className="flex items-center gap-3 sm:w-56">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={day.enabled}
+                            onChange={(e) => updateDaySchedule(idx, { enabled: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+
+                        <span className="font-bold text-xs text-foreground">
+                          {day.name}
+                        </span>
+
+                        {day.enabled ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] px-1.5 py-0">
+                            Available
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0">
+                            Off
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Time Inputs */}
+                      {day.enabled ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground">From:</span>
+                            <input
+                              type="time"
+                              value={day.startTime}
+                              onChange={(e) => updateDaySchedule(idx, { startTime: e.target.value })}
+                              className="h-8 px-2 text-xs rounded-lg border bg-background font-semibold"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground">To:</span>
+                            <input
+                              type="time"
+                              value={day.endTime}
+                              onChange={(e) => updateDaySchedule(idx, { endTime: e.target.value })}
+                              className="h-8 px-2 text-xs rounded-lg border bg-background font-semibold"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground">Capacity:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={day.maxPatients}
+                              onChange={(e) => updateDaySchedule(idx, { maxPatients: Number(e.target.value) || 20 })}
+                              className="h-8 w-16 px-2 text-xs rounded-lg border bg-background font-semibold"
+                              title="Max patients for this day"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-muted-foreground italic">
+                          চেম্বার বন্ধ (No slots generated on this day)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. Doctor Information */}
             <div className="space-y-4">
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <User className="h-4 w-4 text-primary" /> 3. Doctor Details
+                <User className="h-4 w-4 text-primary" /> 4. Doctor Professional Details
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -855,14 +1080,14 @@ export default function AdminDoctorsPage() {
               <Button
                 type="submit"
                 disabled={saving || uploadingImage || uploadingCert}
-                className="bg-primary hover:bg-primary/90 min-w-32 rounded-xl text-xs font-semibold shadow-xs"
+                className="bg-primary hover:bg-primary/90 min-w-36 rounded-xl text-xs font-semibold shadow-xs"
               >
                 {saving ? (
                   <span className="flex items-center gap-1.5">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...
                   </span>
                 ) : editingDoctor ? (
-                  "Save Changes"
+                  "Save Doctor & Schedule"
                 ) : (
                   "Create Doctor"
                 )}
