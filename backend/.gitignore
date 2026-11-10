@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+dist/
+build/
+*.db
+*.db-journal
+*.sqlite
+dev.db
+prisma/dev.db
+uploads/
+.env
+*.log
+.vscode/
+.idea/
+*.tsbuildinfo

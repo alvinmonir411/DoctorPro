@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+
+# Production & Build Outputs
+dist/
+*/dist/
+build/
+*/build/
+.next/
+*/.next/
+out/
+*/out/
+
+# Database & Uploads
+*.db
+*.db-journal
+*.sqlite
+dev.db
+backend/prisma/dev.db
+backend/uploads/
+uploads/
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# TypeScript / Turbopack
+*.tsbuildinfo
+next-env.d.ts
