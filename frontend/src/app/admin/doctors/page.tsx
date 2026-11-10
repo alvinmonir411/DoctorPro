@@ -69,6 +69,31 @@ const DEFAULT_WEEKLY_SCHEDULE: DaySchedule[] = [
 
 const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const SHIFT_PRESETS = [
+  { label: "🌅 Morning", time: "09:00 AM – 01:00 PM", start: "09:00", end: "13:00" },
+  { label: "☀️ Afternoon", time: "02:00 PM – 06:00 PM", start: "14:00", end: "18:00" },
+  { label: "🌆 Evening", time: "05:00 PM – 09:00 PM", start: "17:00", end: "21:00" },
+  { label: "🌙 Night", time: "07:00 PM – 10:30 PM", start: "19:00", end: "22:30" },
+  { label: "🏥 Full Day", time: "09:00 AM – 05:00 PM", start: "09:00", end: "17:00" },
+];
+
+function formatTime12h(time24: string) {
+  if (!time24) return "";
+  const [h, m] = time24.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${(m || 0).toString().padStart(2, "0")} ${period}`;
+}
+
+function calculateSlotCapacity(startStr: string, endStr: string, duration: number) {
+  if (!startStr || !endStr || !duration) return 0;
+  const [h1, m1] = startStr.split(":").map(Number);
+  const [h2, m2] = endStr.split(":").map(Number);
+  const totalMinutes = h2 * 60 + (m2 || 0) - (h1 * 60 + (m1 || 0));
+  if (totalMinutes <= 0) return 0;
+  return Math.floor(totalMinutes / duration);
+}
+
 export default function AdminDoctorsPage() {
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
@@ -95,9 +120,32 @@ export default function AdminDoctorsPage() {
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
 
-  // Slot duration & Auto approve
+  // Slot duration & Auto approve & Appointment window (কয়টা থেকে কয়টা অ্যাপয়েন্টমেন্ট নিবেন)
   const [slotDuration, setSlotDuration] = useState<number>(30);
   const [autoApprove, setAutoApprove] = useState<boolean>(false);
+  const [appointmentStartTime, setAppointmentStartTime] = useState<string>("09:00");
+  const [appointmentEndTime, setAppointmentEndTime] = useState<string>("17:00");
+  const [maxDailyPatients, setMaxDailyPatients] = useState<number>(20);
+
+  // Sync general appointment hours to all active weekly days
+  const syncHoursToAllActiveDays = () => {
+    setWeeklySchedule((prev) =>
+      prev.map((d) =>
+        d.enabled
+          ? {
+              ...d,
+              startTime: appointmentStartTime,
+              endTime: appointmentEndTime,
+              maxPatients: maxDailyPatients,
+            }
+          : d
+      )
+    );
+    setSuccessMsg(
+      `Synchronized appointment window (${formatTime12h(appointmentStartTime)} – ${formatTime12h(appointmentEndTime)}) to all active visiting days!`
+    );
+    setTimeout(() => setSuccessMsg(""), 3500);
+  };
 
   // Weekly visiting days schedule
   const [weeklySchedule, setWeeklySchedule] = useState<DaySchedule[]>(DEFAULT_WEEKLY_SCHEDULE);
@@ -154,7 +202,17 @@ export default function AdminDoctorsPage() {
     setBio("");
     setSlotDuration(30);
     setAutoApprove(false);
-    setWeeklySchedule(DEFAULT_WEEKLY_SCHEDULE);
+    setAppointmentStartTime("09:00");
+    setAppointmentEndTime("17:00");
+    setMaxDailyPatients(20);
+    setWeeklySchedule(
+      DEFAULT_WEEKLY_SCHEDULE.map((d) => ({
+        ...d,
+        startTime: "09:00",
+        endTime: "17:00",
+        maxPatients: 20,
+      }))
+    );
     setImage("");
     setCertificate("");
     setCertificateName("");
@@ -177,6 +235,9 @@ export default function AdminDoctorsPage() {
     setBio(doc.bio || "");
     setSlotDuration(doc.slotDuration || 30);
     setAutoApprove(Boolean(doc.autoApprove));
+    setAppointmentStartTime(doc.appointmentStartTime || "09:00");
+    setAppointmentEndTime(doc.appointmentEndTime || "17:00");
+    setMaxDailyPatients(doc.maxDailyPatients || 20);
     setImage(doc.image || "");
     setCertificate(doc.certificate || "");
     setCertificateName(
@@ -338,6 +399,9 @@ export default function AdminDoctorsPage() {
         bio: bio.trim(),
         slotDuration: Number(slotDuration) || 30,
         autoApprove: Boolean(autoApprove),
+        appointmentStartTime: appointmentStartTime || "09:00",
+        appointmentEndTime: appointmentEndTime || "17:00",
+        maxDailyPatients: Number(maxDailyPatients) || 20,
         image: image.trim() || undefined,
         certificate: certificate.trim() || undefined,
         schedules: activeSchedules,
@@ -510,9 +574,16 @@ export default function AdminDoctorsPage() {
                         )}
                       </td>
                       <td className="p-3">
-                        <span className="inline-flex items-center gap-1 font-semibold text-foreground">
-                          <Clock className="h-3 w-3 text-primary" /> {doc.slotDuration || 30} min
-                        </span>
+                        <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 font-semibold text-foreground text-xs">
+                            <Clock className="h-3 w-3 text-primary" /> {doc.slotDuration || 30} min
+                          </span>
+                          {(doc.appointmentStartTime || doc.appointmentEndTime) && (
+                            <p className="text-[10px] text-muted-foreground font-medium">
+                              {formatTime12h(doc.appointmentStartTime || "09:00")} – {formatTime12h(doc.appointmentEndTime || "17:00")}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3">
                         <button
@@ -771,9 +842,128 @@ export default function AdminDoctorsPage() {
 
                 {/* 2. Slot Duration & Auto-Approval Settings */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-primary/5 border border-primary/20 space-y-4">
-                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-primary" /> 2. Consultation Slots & Booking Rules
-                  </h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-primary" /> 2. Consultation Slots & Appointment Window (অ্যাপয়েন্টমেন্ট নেওয়ার সময়)
+                    </h4>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                      {formatTime12h(appointmentStartTime)} – {formatTime12h(appointmentEndTime)}
+                    </span>
+                  </div>
+
+                  {/* Appointment Taking Hours (কয়টা থেকে কয়টা অ্যাপয়েন্টমেন্ট নিবেন) */}
+                  <div className="p-3.5 rounded-xl bg-background border space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b pb-2">
+                      <div>
+                        <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 text-primary" />
+                          Appointment Taking Hours (কয়টা থেকে কয়টা অ্যাপয়েন্টমেন্ট নিবেন)
+                        </Label>
+                        <p className="text-[10px] text-muted-foreground">
+                          Select from what time to what time the doctor accepts patient bookings each day:
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Shift Presets */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Quick Shift Presets (কুইক শিফট নির্বাচন):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {SHIFT_PRESETS.map((preset) => {
+                          const isSelected =
+                            appointmentStartTime === preset.start && appointmentEndTime === preset.end;
+                          return (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => {
+                                setAppointmentStartTime(preset.start);
+                                setAppointmentEndTime(preset.end);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                                  : "bg-muted/30 text-foreground border-border hover:bg-muted"
+                              }`}
+                            >
+                              <span>{preset.label}</span>{" "}
+                              <span className="opacity-75 font-normal">({preset.time.split("–")[0].trim()}–...)</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Custom Time Pickers & Daily Quota */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-semibold flex items-center justify-between">
+                          <span>Start Time (কয়টা থেকে) *</span>
+                          <span className="text-[10px] font-bold text-primary">{formatTime12h(appointmentStartTime)}</span>
+                        </Label>
+                        <Input
+                          type="time"
+                          value={appointmentStartTime}
+                          onChange={(e) => setAppointmentStartTime(e.target.value)}
+                          required
+                          className="h-9 rounded-xl text-xs font-semibold"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-semibold flex items-center justify-between">
+                          <span>End Time (কয়টা পর্যন্ত) *</span>
+                          <span className="text-[10px] font-bold text-primary">{formatTime12h(appointmentEndTime)}</span>
+                        </Label>
+                        <Input
+                          type="time"
+                          value={appointmentEndTime}
+                          onChange={(e) => setAppointmentEndTime(e.target.value)}
+                          required
+                          className="h-9 rounded-xl text-xs font-semibold"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[11px] font-semibold flex items-center justify-between">
+                          <span>Daily Quota (দৈনিক রোগী)</span>
+                          <span className="text-[10px] text-muted-foreground">Max limit</span>
+                        </Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={maxDailyPatients}
+                          onChange={(e) => setMaxDailyPatients(Number(e.target.value) || 20)}
+                          className="h-9 rounded-xl text-xs font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Calculation Summary Bar & Sync Button */}
+                    <div className="p-2.5 rounded-xl bg-slate-50 border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-foreground font-medium">
+                        <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span>
+                          {formatTime12h(appointmentStartTime)} থেকে {formatTime12h(appointmentEndTime)} • প্রতি রোগী{" "}
+                          <strong className="text-primary font-bold">{slotDuration} মিনিট</strong> হিসেবে দিনে সর্বোচ্চ{" "}
+                          <strong className="text-emerald-700 font-bold">{calculateSlotCapacity(appointmentStartTime, appointmentEndTime, slotDuration)}টি স্লট</strong>।
+                        </span>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={syncHoursToAllActiveDays}
+                        className="h-7 text-[10px] rounded-lg font-bold shrink-0 bg-primary/10 text-primary hover:bg-primary/20"
+                      >
+                        ⚡ Sync to All Active Days
+                      </Button>
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Slot Duration Interactive Pills */}

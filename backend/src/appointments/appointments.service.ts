@@ -204,17 +204,21 @@ export class AppointmentsService {
       return { available: false, message: 'Doctor is not available on this day', slots: [] };
     }
 
-    // Get doctor's slot duration (default 30 mins, or 10, 15, 20, 30, 45, 60 mins)
+    // Get doctor's slot duration & appointment window
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: doctorId },
-      select: { slotDuration: true },
+      select: { slotDuration: true, appointmentStartTime: true, appointmentEndTime: true },
     });
     const slotDuration = doctor?.slotDuration && doctor.slotDuration > 0 ? doctor.slotDuration : 30;
 
+    // Use schedule hours, falling back to doctor's configured appointment hours
+    const effectiveStartTime = schedule.startTime || doctor?.appointmentStartTime || '09:00';
+    const effectiveEndTime = schedule.endTime || doctor?.appointmentEndTime || '17:00';
+
     // Generate slots between startTime and endTime
     const slots: string[] = [];
-    const [startH, startM] = schedule.startTime.split(':').map(Number);
-    const [endH, endM] = schedule.endTime.split(':').map(Number);
+    const [startH, startM] = effectiveStartTime.split(':').map(Number);
+    const [endH, endM] = effectiveEndTime.split(':').map(Number);
 
     let currentMinutes = startH * 60 + startM;
     const endMinutes = endH * 60 + endM;

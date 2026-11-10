@@ -194,6 +194,9 @@ export class AuthService {
         certificate: dto.certificate || null,
         slotDuration: dto.slotDuration ? Number(dto.slotDuration) : 30,
         autoApprove: Boolean(dto.autoApprove),
+        appointmentStartTime: dto.appointmentStartTime || '09:00',
+        appointmentEndTime: dto.appointmentEndTime || '17:00',
+        maxDailyPatients: dto.maxDailyPatients ? Number(dto.maxDailyPatients) : 20,
         experienceYears: dto.experienceYears ? Number(dto.experienceYears) : 5,
         chamberAddress: dto.chamberAddress || 'DoctorPro Clinic, Dhaka',
         phone: dto.phone || null,
@@ -202,12 +205,12 @@ export class AuthService {
         isActive: false, // Inactive until admin approves
         schedules: {
           create: [
-            { dayOfWeek: 6, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
-            { dayOfWeek: 0, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
-            { dayOfWeek: 1, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
-            { dayOfWeek: 2, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
-            { dayOfWeek: 3, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
-            { dayOfWeek: 4, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
+            { dayOfWeek: 6, startTime: dto.appointmentStartTime || '09:00', endTime: dto.appointmentEndTime || '17:00', maxPatients: dto.maxDailyPatients ? Number(dto.maxDailyPatients) : 20 },
+            { dayOfWeek: 0, startTime: dto.appointmentStartTime || '09:00', endTime: dto.appointmentEndTime || '17:00', maxPatients: dto.maxDailyPatients ? Number(dto.maxDailyPatients) : 20 },
+            { dayOfWeek: 1, startTime: dto.appointmentStartTime || '09:00', endTime: dto.appointmentEndTime || '17:00', maxPatients: dto.maxDailyPatients ? Number(dto.maxDailyPatients) : 20 },
+            { dayOfWeek: 2, startTime: dto.appointmentStartTime || '09:00', endTime: dto.appointmentEndTime || '17:00', maxPatients: dto.maxDailyPatients ? Number(dto.maxDailyPatients) : 20 },
+            { dayOfWeek: 3, startTime: dto.appointmentStartTime || '09:00', endTime: dto.appointmentEndTime || '17:00', maxPatients: dto.maxDailyPatients ? Number(dto.maxDailyPatients) : 20 },
+            { dayOfWeek: 4, startTime: dto.appointmentStartTime || '09:00', endTime: dto.appointmentEndTime || '17:00', maxPatients: dto.maxDailyPatients ? Number(dto.maxDailyPatients) : 20 },
           ],
         },
       },

@@ -201,9 +201,15 @@ export default function DoctorsPage() {
                       </div>
                     )}
 
-                    {/* Slot interval badge */}
-                    <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-xs text-slate-800 text-[10px] font-bold px-2.5 py-0.5 rounded-md shadow-xs border flex items-center gap-1">
-                      <Clock className="h-3 w-3 text-primary" /> {doc.slotDuration || 30} min slot
+                    {/* Slot interval & appointment hours badge */}
+                    <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-xs text-slate-800 text-[10px] font-bold px-2.5 py-0.5 rounded-md shadow-xs border flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 text-primary" />
+                      <span>{doc.slotDuration || 30} min</span>
+                      {(doc.appointmentStartTime || doc.appointmentEndTime) && (
+                        <span className="text-muted-foreground border-l pl-1.5 font-medium">
+                          {doc.appointmentStartTime || "09:00"}–{doc.appointmentEndTime || "17:00"}
+                        </span>
+                      )}
                     </div>
                   </div>
 

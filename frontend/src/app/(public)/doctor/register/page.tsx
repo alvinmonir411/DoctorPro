@@ -62,6 +62,9 @@ export default function DoctorRegisterPage() {
   // Practice preferences
   const [slotDuration, setSlotDuration] = useState<number>(30);
   const [autoApprove, setAutoApprove] = useState<boolean>(false);
+  const [appointmentStartTime, setAppointmentStartTime] = useState<string>("09:00");
+  const [appointmentEndTime, setAppointmentEndTime] = useState<string>("17:00");
+  const [maxDailyPatients, setMaxDailyPatients] = useState<number>(20);
 
   // File Upload states
   const [image, setImage] = useState("");
@@ -162,6 +165,9 @@ export default function DoctorRegisterPage() {
         certificate: certificate || undefined,
         slotDuration: Number(slotDuration),
         autoApprove: Boolean(autoApprove),
+        appointmentStartTime: appointmentStartTime || "09:00",
+        appointmentEndTime: appointmentEndTime || "17:00",
+        maxDailyPatients: Number(maxDailyPatients) || 20,
       };
 
       const res = await authApi.doctorRegister(payload);
@@ -523,36 +529,87 @@ export default function DoctorRegisterPage() {
                 </div>
               </div>
 
-              {/* ─── 4. Slot Duration & Auto-Approve ─── */}
+              {/* ─── 4. Slot Duration & Appointment Window ─── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b">
                   <Clock className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-bold tracking-tight text-foreground uppercase">
-                    4. Practice Consultation Slot Duration
+                    4. Practice Consultation Hours & Slot Settings (অ্যাপয়েন্টমেন্ট নেওয়ার সময়)
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                  {SLOT_OPTIONS.map((opt) => {
-                    const selected = slotDuration === opt.value;
-                    return (
-                      <button
-                        type="button"
-                        key={opt.value}
-                        onClick={() => setSlotDuration(opt.value)}
-                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                          selected
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-muted/20 hover:bg-muted/40 border-border text-foreground"
-                        }`}
-                      >
-                        <p className="font-extrabold text-sm">{opt.label}</p>
-                        <p className={`text-[10px] mt-0.5 ${selected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                          {opt.desc}
-                        </p>
-                      </button>
-                    );
-                  })}
+                {/* Appointment Taking Hours (কয়টা থেকে কয়টা অ্যাপয়েন্টমেন্ট নিবেন) */}
+                <div className="p-4 rounded-2xl border bg-muted/10 space-y-3">
+                  <div>
+                    <Label className="text-xs font-bold text-foreground">
+                      Appointment Taking Hours (কয়টা থেকে কয়টা অ্যাপয়েন্টমেন্ট নিবেন) *
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      প্রতিদিন কখন থেকে কখন রোগী দেখবেন তা নির্ধারণ করুন।
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Start Time (কয়টা থেকে) *</Label>
+                      <Input
+                        type="time"
+                        value={appointmentStartTime}
+                        onChange={(e) => setAppointmentStartTime(e.target.value)}
+                        required
+                        className="h-11 rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">End Time (কয়টা পর্যন্ত) *</Label>
+                      <Input
+                        type="time"
+                        value={appointmentEndTime}
+                        onChange={(e) => setAppointmentEndTime(e.target.value)}
+                        required
+                        className="h-11 rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Max Daily Patients (দৈনিক রোগী সীমা)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="200"
+                        value={maxDailyPatients}
+                        onChange={(e) => setMaxDailyPatients(Number(e.target.value) || 20)}
+                        className="h-11 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold">Patient Consultation Slot Duration *</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                    {SLOT_OPTIONS.map((opt) => {
+                      const selected = slotDuration === opt.value;
+                      return (
+                        <button
+                          type="button"
+                          key={opt.value}
+                          onClick={() => setSlotDuration(opt.value)}
+                          className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                            selected
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-muted/20 hover:bg-muted/40 border-border text-foreground"
+                          }`}
+                        >
+                          <p className="font-extrabold text-sm">{opt.label}</p>
+                          <p className={`text-[10px] mt-0.5 ${selected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                            {opt.desc}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-2xl border bg-muted/20 flex items-center justify-between gap-4">

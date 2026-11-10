@@ -52,6 +52,9 @@ model Doctor {
   certificate      String?
   slotDuration     Int      @default(30) // slot duration in minutes (10, 15, 20, 30, 45, 60)
   autoApprove      Boolean  @default(false) // auto-confirm online bookings
+  appointmentStartTime String?  @default("09:00") // e.g. "09:00" / "17:00"
+  appointmentEndTime   String?  @default("17:00") // e.g. "17:00" / "21:00"
+  maxDailyPatients     Int      @default(20)
   experienceYears  Int      @default(0)
   education        String?  // JSON string
   chamberAddress   String?

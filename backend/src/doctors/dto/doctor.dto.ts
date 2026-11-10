@@ -73,6 +73,18 @@ export class CreateDoctorDto {
   autoApprove?: boolean;
 
   @IsOptional()
+  @IsString()
+  appointmentStartTime?: string;
+
+  @IsOptional()
+  @IsString()
+  appointmentEndTime?: string;
+
+  @IsOptional()
+  @IsNumber()
+  maxDailyPatients?: number;
+
+  @IsOptional()
   @IsNumber()
   experienceYears?: number;
 
@@ -147,6 +159,18 @@ export class UpdateDoctorDto {
   @IsOptional()
   @IsBoolean()
   autoApprove?: boolean;
+
+  @IsOptional()
+  @IsString()
+  appointmentStartTime?: string;
+
+  @IsOptional()
+  @IsString()
+  appointmentEndTime?: string;
+
+  @IsOptional()
+  @IsNumber()
+  maxDailyPatients?: number;
 
   @IsOptional()
   @IsNumber()

@@ -74,6 +74,19 @@ export class DoctorRegisterDto {
   @Type(() => Boolean)
   @IsBoolean()
   autoApprove?: boolean;
+
+  @IsOptional()
+  @IsString()
+  appointmentStartTime?: string;
+
+  @IsOptional()
+  @IsString()
+  appointmentEndTime?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  maxDailyPatients?: number;
 }
 
 export class CreateAssistantDto {

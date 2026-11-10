@@ -138,6 +138,12 @@ export default function DoctorDetailPage() {
                     <MapPin className="h-4 w-4 text-primary" /> {doctor.chamberAddress}
                   </span>
                 )}
+                {(doctor.appointmentStartTime || doctor.appointmentEndTime) && (
+                  <span className="flex items-center gap-1 font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg text-xs">
+                    <Clock className="h-3.5 w-3.5 text-emerald-600" />
+                    Hours: {doctor.appointmentStartTime || "09:00"} – {doctor.appointmentEndTime || "17:00"} ({doctor.slotDuration || 30} min)
+                  </span>
+                )}
               </div>
 
               {doctor.certificate && (
