@@ -26,7 +26,6 @@ export function PublicNavbar() {
     { label: "About", href: "/about" },
     { label: "Departments", href: "/services" },
     { label: "Doctors", href: "/doctors" },
-    { label: "Patients", href: "/appointment" },
     { label: "Blog", href: "/blog" },
     { label: "Contact", href: "/contact" },
   ];
