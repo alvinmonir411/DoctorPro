@@ -82,38 +82,69 @@ export default function DoctorsPage() {
           </p>
         </div>
 
-        {/* Filter & Search Bar */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-muted/30 border max-w-4xl mx-auto">
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        {/* Filter & Search Bar: Search on top, Categories below */}
+        <div className="max-w-4xl mx-auto p-5 sm:p-6 rounded-3xl bg-white shadow-xs border border-slate-200/80 space-y-4">
+          {/* Top: Full-Width Search Input */}
+          <div className="relative w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
             <Input
-              placeholder="Search by doctor or specialization..."
+              placeholder="Search doctor by name, qualification, or specialization (e.g. Cardiologist, Eye Specialist)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-background rounded-xl"
+              className="pl-12 pr-10 h-12 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-sm rounded-2xl border-slate-200 transition-colors shadow-2xs"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+                title="Clear search"
+                type="button"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <Button
-              variant={selectedDept === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedDept("all")}
-              className="rounded-full text-xs"
-            >
-              All Departments
-            </Button>
-            {departmentsList.map((d) => (
+          {/* Bottom: Department / Category Pills */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+              <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <Stethoscope className="h-3.5 w-3.5 text-primary" /> Filter by Department:
+              </span>
+              <span>
+                {filteredDoctors.length} {filteredDoctors.length === 1 ? "Doctor" : "Doctors"} found
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
               <Button
-                key={d.id}
-                variant={selectedDept === d.id ? "default" : "outline"}
+                variant={selectedDept === "all" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedDept(d.id)}
-                className="rounded-full text-xs"
+                onClick={() => setSelectedDept("all")}
+                className={`rounded-full text-xs px-4 h-8.5 font-medium transition-all ${
+                  selectedDept === "all"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                }`}
               >
-                {d.name}
+                All Departments
               </Button>
-            ))}
+              {departmentsList.map((d) => (
+                <Button
+                  key={d.id}
+                  variant={selectedDept === d.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedDept(d.id)}
+                  className={`rounded-full text-xs px-4 h-8.5 font-medium transition-all ${
+                    selectedDept === d.id
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  {d.name}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
