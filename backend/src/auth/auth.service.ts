@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -11,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { CreateStaffUserDto, UpdateStaffUserDto } from './dto/user-management.dto';
+import { DoctorRegisterDto, CreateAssistantDto } from './dto/doctor-register.dto';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +20,15 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
   ) {}
+
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
@@ -33,12 +44,32 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    // Check account status
+    if (user.status === 'PENDING_APPROVAL') {
+      throw new ForbiddenException(
+        'Your doctor registration is pending clinic administration approval. You will receive access once verified.',
+      );
+    }
+
+    if (user.status === 'REJECTED') {
+      throw new ForbiddenException(
+        'Your registration was declined by clinic administration. Please contact the front desk.',
+      );
+    }
+
     let doctor: any = null;
     if (user.doctorId) {
       doctor = await this.prisma.doctor.findUnique({
         where: { id: user.doctorId },
         include: { department: true },
       });
+
+      // If doctor role and doctor record is inactive
+      if (user.role === 'DOCTOR' && doctor && !doctor.isActive) {
+        throw new ForbiddenException(
+          'Your doctor practice profile is currently deactivated or pending review by administration.',
+        );
+      }
     }
 
     const payload = {
@@ -58,6 +89,7 @@ export class AuthService {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        status: user.status,
         avatar: user.avatar,
         doctorId: user.doctorId,
         doctor,
@@ -83,6 +115,7 @@ export class AuthService {
         phone: dto.phone,
         password: hashedPassword,
         role: 'ADMIN',
+        status: 'APPROVED',
       },
     });
 
@@ -98,8 +131,272 @@ export class AuthService {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        status: user.status,
         avatar: user.avatar,
       },
+    };
+  }
+
+  // ─── Doctor Self-Registration (Pending Admin Approval) ───
+
+  async registerDoctor(dto: DoctorRegisterDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existingUser) {
+      throw new ConflictException('An account with this email address already exists.');
+    }
+
+    // Resolve or find Department
+    let departmentId = dto.departmentId;
+    const existingDept = await this.prisma.department.findUnique({
+      where: { id: departmentId },
+    });
+    if (!existingDept) {
+      // Find or create
+      let dept = await this.prisma.department.findFirst({
+        where: {
+          OR: [{ slug: this.generateSlug(departmentId) }, { name: departmentId }],
+        },
+      });
+      if (!dept) {
+        dept = await this.prisma.department.create({
+          data: {
+            name: departmentId,
+            slug: this.generateSlug(departmentId) || 'general-medicine',
+          },
+        });
+      }
+      departmentId = dept.id;
+    }
+
+    // Generate unique slug
+    let baseSlug = this.generateSlug(dto.name);
+    if (!baseSlug) baseSlug = 'doctor-' + Date.now();
+    let slug = baseSlug;
+    let count = 1;
+    while (await this.prisma.doctor.findUnique({ where: { slug } })) {
+      slug = `${baseSlug}-${count++}`;
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    // Create Doctor record with isActive = false (pending review)
+    const doctor = await this.prisma.doctor.create({
+      data: {
+        name: dto.name,
+        title: dto.title || 'MBBS, FCPS',
+        slug,
+        specialization: dto.specialization,
+        departmentId,
+        bio: dto.bio || null,
+        image: dto.image || null,
+        certificate: dto.certificate || null,
+        slotDuration: dto.slotDuration ? Number(dto.slotDuration) : 30,
+        autoApprove: Boolean(dto.autoApprove),
+        experienceYears: dto.experienceYears ? Number(dto.experienceYears) : 5,
+        chamberAddress: dto.chamberAddress || 'DoctorPro Clinic, Dhaka',
+        phone: dto.phone || null,
+        email: dto.email,
+        consultationFee: dto.consultationFee ? Number(dto.consultationFee) : 1000,
+        isActive: false, // Inactive until admin approves
+        schedules: {
+          create: [
+            { dayOfWeek: 6, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
+            { dayOfWeek: 0, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
+            { dayOfWeek: 1, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
+            { dayOfWeek: 2, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
+            { dayOfWeek: 3, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
+            { dayOfWeek: 4, startTime: '09:00', endTime: '14:00', maxPatients: 20 },
+          ],
+        },
+      },
+      include: { department: true },
+    });
+
+    // Create User record with PENDING_APPROVAL
+    const user = await this.prisma.user.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone || null,
+        password: hashedPassword,
+        role: 'DOCTOR',
+        status: 'PENDING_APPROVAL',
+        doctorId: doctor.id,
+        avatar: dto.image || null,
+      },
+    });
+
+    return {
+      success: true,
+      message:
+        'Doctor registration submitted successfully! Your profile and credentials are now under review. You will be able to log in once approved by clinic administration.',
+      doctor: {
+        id: doctor.id,
+        name: doctor.name,
+        slug: doctor.slug,
+        email: doctor.email,
+      },
+      user: {
+        id: user.id,
+        email: user.email,
+        status: user.status,
+      },
+    };
+  }
+
+  // ─── Admin Doctor Approval Workflow ───
+
+  async approveDoctor(doctorId: string) {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+    });
+    if (!doctor) {
+      throw new NotFoundException('Doctor record not found');
+    }
+
+    // Activate doctor
+    const updatedDoctor = await this.prisma.doctor.update({
+      where: { id: doctorId },
+      data: { isActive: true },
+    });
+
+    // Activate linked user(s)
+    await this.prisma.user.updateMany({
+      where: { doctorId },
+      data: { status: 'APPROVED' },
+    });
+
+    return {
+      success: true,
+      message: `Dr. ${doctor.name} has been approved and activated successfully. They can now log in.`,
+      doctor: updatedDoctor,
+    };
+  }
+
+  async rejectDoctor(doctorId: string) {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+    });
+    if (!doctor) {
+      throw new NotFoundException('Doctor record not found');
+    }
+
+    // Deactivate doctor
+    await this.prisma.doctor.update({
+      where: { id: doctorId },
+      data: { isActive: false },
+    });
+
+    // Set user status to REJECTED
+    await this.prisma.user.updateMany({
+      where: { doctorId },
+      data: { status: 'REJECTED' },
+    });
+
+    return {
+      success: true,
+      message: `Dr. ${doctor.name}'s registration has been rejected.`,
+    };
+  }
+
+  // ─── Doctor's Assistant Management (Doctor can add & manage her assistants) ───
+
+  async getDoctorAssistants(doctorId: string) {
+    if (!doctorId) {
+      throw new BadRequestException('Doctor ID is required');
+    }
+
+    return this.prisma.user.findMany({
+      where: {
+        doctorId,
+        role: 'DOCTOR_ASSISTANT',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        doctorId: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async createDoctorAssistant(doctorId: string, dto: CreateAssistantDto) {
+    if (!doctorId) {
+      throw new BadRequestException('Doctor ID is required');
+    }
+
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+    });
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (existing) {
+      throw new ConflictException('A user account with this email already exists.');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone || null,
+        role: 'DOCTOR_ASSISTANT',
+        status: 'APPROVED',
+        doctorId: doctor.id,
+        password: hashedPassword,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        doctorId: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: `Assistant ${user.name} added successfully for Dr. ${doctor.name}.`,
+      assistant: user,
+    };
+  }
+
+  async deleteDoctorAssistant(doctorId: string, assistantId: string) {
+    const assistant = await this.prisma.user.findFirst({
+      where: {
+        id: assistantId,
+        doctorId,
+        role: 'DOCTOR_ASSISTANT',
+      },
+    });
+
+    if (!assistant) {
+      throw new NotFoundException('Assistant account not found for this doctor.');
+    }
+
+    await this.prisma.user.delete({
+      where: { id: assistantId },
+    });
+
+    return {
+      success: true,
+      message: 'Assistant account removed successfully.',
     };
   }
 
@@ -112,6 +409,7 @@ export class AuthService {
         email: true,
         phone: true,
         role: true,
+        status: true,
         avatar: true,
         doctorId: true,
         createdAt: true,
@@ -126,7 +424,7 @@ export class AuthService {
     if (user.doctorId) {
       doctor = await this.prisma.doctor.findUnique({
         where: { id: user.doctorId },
-        include: { department: true },
+        include: { department: true, schedules: true },
       });
     }
 
@@ -144,6 +442,7 @@ export class AuthService {
         email: true,
         phone: true,
         role: true,
+        status: true,
         avatar: true,
         doctorId: true,
         createdAt: true,
@@ -152,7 +451,16 @@ export class AuthService {
 
     // Populate doctor details for each user
     const doctors = await this.prisma.doctor.findMany({
-      select: { id: true, name: true, specialization: true, slotDuration: true, autoApprove: true },
+      select: {
+        id: true,
+        name: true,
+        specialization: true,
+        image: true,
+        certificate: true,
+        isActive: true,
+        slotDuration: true,
+        autoApprove: true,
+      },
     });
     const doctorMap = new Map(doctors.map((d) => [d.id, d]));
 
@@ -178,6 +486,7 @@ export class AuthService {
         email: dto.email,
         phone: dto.phone,
         role: dto.role,
+        status: 'APPROVED',
         doctorId: dto.doctorId || null,
         password: hashedPassword,
       },
@@ -187,6 +496,7 @@ export class AuthService {
         email: true,
         phone: true,
         role: true,
+        status: true,
         doctorId: true,
         createdAt: true,
       },
@@ -229,6 +539,7 @@ export class AuthService {
         email: true,
         phone: true,
         role: true,
+        status: true,
         doctorId: true,
         createdAt: true,
       },

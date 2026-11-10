@@ -86,6 +86,18 @@ export const auth = {
     phone?: string;
   }) => post<{ access_token: string; user: unknown }>("/auth/register", data),
 
+  doctorRegister: (data: unknown) => post<any>("/auth/doctor-register", data),
+
+  approveDoctor: (id: string) => patch<any>(`/auth/approve-doctor/${id}`, {}),
+
+  rejectDoctor: (id: string) => patch<any>(`/auth/reject-doctor/${id}`, {}),
+
+  getMyAssistants: () => get<any[]>("/auth/my-assistants"),
+
+  createMyAssistant: (data: unknown) => post<any>("/auth/my-assistants", data),
+
+  deleteMyAssistant: (id: string) => del<any>(`/auth/my-assistants/${id}`),
+
   getProfile: () => get<unknown>("/auth/profile"),
 };
 

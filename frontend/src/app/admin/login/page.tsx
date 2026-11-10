@@ -45,16 +45,25 @@ export default function AdminLoginPage() {
               Doctor<span className="text-primary">Pro</span>
             </span>
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Clinic Admin Portal</h1>
-          <p className="text-xs text-muted-foreground">Sign in with administrator credentials</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Doctor & Staff Portal</h1>
+          <p className="text-xs text-muted-foreground">Sign in with administrator, doctor, or assistant credentials</p>
         </div>
 
         <Card className="rounded-2xl border-border/80 shadow-lg">
           <CardContent className="p-6 md:p-8 space-y-4">
             {error && (
-              <div className="flex items-center gap-2 p-3 text-xs rounded-xl bg-destructive/10 text-destructive border border-destructive/20">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{error}</span>
+              <div className={`flex items-start gap-2.5 p-3.5 text-xs rounded-xl border ${
+                error.toLowerCase().includes("pending")
+                  ? "bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-200 border-amber-300"
+                  : "bg-destructive/10 text-destructive border-destructive/20"
+              }`}>
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold block">
+                    {error.toLowerCase().includes("pending") ? "Approval Required" : "Authentication Notice"}
+                  </span>
+                  <span>{error}</span>
+                </div>
               </div>
             )}
 
@@ -99,6 +108,16 @@ export default function AdminLoginPage() {
               >
                 {loading ? "Authenticating..." : "Sign In to Dashboard"}
               </Button>
+
+              <div className="pt-3 border-t text-center space-y-1">
+                <p className="text-xs text-muted-foreground">Are you a practicing Doctor or Consultant?</p>
+                <Link
+                  href="/doctor/register"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                >
+                  <Stethoscope className="h-3.5 w-3.5" /> Register Your Practice & Profile Here →
+                </Link>
+              </div>
             </form>
           </CardContent>
         </Card>

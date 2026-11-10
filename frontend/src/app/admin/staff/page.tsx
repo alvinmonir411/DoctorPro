@@ -24,8 +24,11 @@ import {
   UserCheck,
   Stethoscope,
   Key,
+  FileCheck,
+  Award,
 } from "lucide-react";
-import { staff as staffApi, doctors as doctorsApi } from "@/lib/api";
+import { staff as staffApi, doctors as doctorsApi, auth as authApi } from "@/lib/api";
+import { getMediaUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 
 export default function AdminStaffPage() {
@@ -166,6 +169,40 @@ export default function AdminStaffPage() {
     }
   };
 
+  const handleApproveDoctor = async (st: any) => {
+    try {
+      const docId = st.doctorId || st.doctor?.id;
+      if (!docId) {
+        alert("No doctor profile ID linked to this account.");
+        return;
+      }
+      await authApi.approveDoctor(docId);
+      setSuccessMsg(`Dr. ${st.name} approved successfully! Their account is now active.`);
+      setTimeout(() => setSuccessMsg(""), 4000);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || "Failed to approve doctor.");
+    }
+  };
+
+  const handleRejectDoctor = async (st: any) => {
+    if (!confirm(`Are you sure you want to decline Dr. ${st.name}'s registration?`)) return;
+    try {
+      const docId = st.doctorId || st.doctor?.id;
+      if (!docId) return;
+      await authApi.rejectDoctor(docId);
+      setSuccessMsg(`Dr. ${st.name}'s registration was declined.`);
+      setTimeout(() => setSuccessMsg(""), 4000);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || "Failed to reject doctor.");
+    }
+  };
+
+  const pendingDoctors = staffList.filter(
+    (s) => s.role === "DOCTOR" && s.status === "PENDING_APPROVAL"
+  );
+
   const filtered = staffList.filter((s) => {
     return (
       !search ||
@@ -199,6 +236,63 @@ export default function AdminStaffPage() {
         </div>
       )}
 
+      {/* Pending Doctor Applications Alert Banner */}
+      {pendingDoctors.length > 0 && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              <span className="font-bold text-xs uppercase tracking-wider">
+                {pendingDoctors.length} New Doctor Registration(s) Awaiting Admin Approval
+              </span>
+            </div>
+            <Badge className="bg-amber-200 text-amber-900 text-[10px] font-bold">Action Required</Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            {pendingDoctors.map((pDoc) => (
+              <div
+                key={pDoc.id}
+                className="p-3 bg-white rounded-xl border border-amber-200/80 flex items-center justify-between gap-3"
+              >
+                <div>
+                  <p className="font-bold text-xs text-slate-800">Dr. {pDoc.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{pDoc.email}</p>
+                  {pDoc.doctor?.certificate && (
+                    <a
+                      href={getMediaUrl(pDoc.doctor.certificate)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] text-emerald-700 hover:underline font-semibold mt-1"
+                    >
+                      <FileCheck className="h-3 w-3" /> Inspect BMDC Certificate
+                    </a>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    onClick={() => handleApproveDoctor(pDoc)}
+                    className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold"
+                  >
+                    ✓ Approve Doctor
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleRejectDoctor(pDoc)}
+                    className="h-8 px-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg"
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Search Filter Bar */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -224,6 +318,7 @@ export default function AdminStaffPage() {
                     <th className="p-3">Email Address</th>
                     <th className="p-3">Assigned Role</th>
                     <th className="p-3">Linked Doctor Profile</th>
+                    <th className="p-3">Account Status</th>
                     <th className="p-3">Phone</th>
                     <th className="p-3 text-right">Actions</th>
                   </tr>
@@ -236,7 +331,12 @@ export default function AdminStaffPage() {
                           <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">
                             {st.name.charAt(0)}
                           </div>
-                          <span className="font-semibold text-foreground">{st.name}</span>
+                          <div>
+                            <p className="font-semibold text-foreground">{st.name}</p>
+                            {st.status === "PENDING_APPROVAL" && (
+                              <span className="text-[10px] text-amber-600 font-semibold">● New Application</span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="p-3 text-muted-foreground font-mono text-[11px]">{st.email}</td>
@@ -263,6 +363,40 @@ export default function AdminStaffPage() {
                           <span className="text-muted-foreground text-[10px]">All Practice Facilities</span>
                         ) : (
                           <span className="text-muted-foreground/60 text-[10px]">—</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        {st.status === "PENDING_APPROVAL" ? (
+                          <div className="space-y-1">
+                            <Badge className="bg-amber-100 text-amber-800 text-[10px] font-semibold hover:bg-amber-100">
+                              Pending Approval
+                            </Badge>
+                            <div className="flex items-center gap-1 pt-0.5">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveDoctor(st)}
+                                className="h-6 px-2 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium"
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRejectDoctor(st)}
+                                className="h-6 px-1.5 text-[10px] text-rose-600 hover:bg-rose-50 rounded"
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        ) : st.status === "REJECTED" ? (
+                          <Badge variant="destructive" className="text-[10px]">
+                            Declined
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-emerald-100 text-emerald-800 text-[10px] hover:bg-emerald-100">
+                            Active
+                          </Badge>
                         )}
                       </td>
                       <td className="p-3 text-muted-foreground">{st.phone || "—"}</td>

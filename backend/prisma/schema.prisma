@@ -26,6 +26,7 @@ model User {
   phone     String?
   password  String
   role      String   @default("ADMIN") // ADMIN | DOCTOR | DOCTOR_ASSISTANT
+  status    String   @default("APPROVED") // APPROVED | PENDING_APPROVAL | REJECTED
   avatar    String?
   doctorId  String?
   createdAt DateTime @default(now())
@@ -35,6 +36,7 @@ model User {
 
   @@index([email])
   @@index([role])
+  @@index([status])
   @@index([doctorId])
 }
 

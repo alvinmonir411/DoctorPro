@@ -8,12 +8,14 @@ import {
   Body,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { CreateStaffUserDto, UpdateStaffUserDto } from './dto/user-management.dto';
+import { DoctorRegisterDto, CreateAssistantDto } from './dto/doctor-register.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
 
@@ -36,6 +38,13 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Public()
+  @Post('doctor-register')
+  @ApiOperation({ summary: 'Doctor self-registration (subject to admin approval)' })
+  async registerDoctor(@Body() dto: DoctorRegisterDto) {
+    return this.authService.registerDoctor(dto);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   @ApiBearerAuth()
@@ -44,7 +53,61 @@ export class AuthController {
     return this.authService.getProfile(req.user.sub);
   }
 
-  // ─── Staff & Users Management (Admin, Doctor, Doctor Assistant) ───
+  // ─── Admin Doctor Approval ───
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('approve-doctor/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Approve doctor registration (Admin)' })
+  async approveDoctor(@Param('id') id: string) {
+    return this.authService.approveDoctor(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('reject-doctor/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reject doctor registration (Admin)' })
+  async rejectDoctor(@Param('id') id: string) {
+    return this.authService.rejectDoctor(id);
+  }
+
+  // ─── Doctor Assistant Management (by the Doctor) ───
+
+  private async resolveDoctorId(req: any): Promise<string> {
+    if (req.user?.doctorId) return req.user.doctorId;
+    const profile = await this.authService.getProfile(req.user.sub);
+    if (profile?.doctorId) return profile.doctorId;
+    throw new BadRequestException('Only registered doctors can manage assistant staff');
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-assistants')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get assistants for the logged-in doctor' })
+  async getMyAssistants(@Request() req: any) {
+    const doctorId = await this.resolveDoctorId(req);
+    return this.authService.getDoctorAssistants(doctorId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('my-assistants')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create assistant account for the logged-in doctor' })
+  async createMyAssistant(@Request() req: any, @Body() dto: CreateAssistantDto) {
+    const doctorId = await this.resolveDoctorId(req);
+    return this.authService.createDoctorAssistant(doctorId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('my-assistants/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove assistant account' })
+  async deleteMyAssistant(@Request() req: any, @Param('id') id: string) {
+    const doctorId = await this.resolveDoctorId(req);
+    return this.authService.deleteDoctorAssistant(doctorId, id);
+  }
+
+  // ─── Staff & Users Management (Admin only) ───
 
   @UseGuards(JwtAuthGuard)
   @Get('staff')

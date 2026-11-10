@@ -51,6 +51,7 @@ export default function AdminLayout({
         { label: "Doctor Dashboard", href: "/admin", icon: LayoutDashboard },
         { label: "My Appointments", href: "/admin/appointments", icon: Calendar },
         { label: "My Profile & Hours", href: "/admin/doctors", icon: Stethoscope },
+        { label: "My Assistants", href: "/admin/assistants", icon: ShieldCheck },
         { label: "My Patients", href: "/admin/patients", icon: Users },
       ];
     }
