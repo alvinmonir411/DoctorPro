@@ -603,493 +603,518 @@ export default function AdminDoctorsPage() {
 
       {/* Add / Edit Doctor Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-6 sm:p-8">
-          <DialogHeader className="border-b pb-3">
-            <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Stethoscope className="h-5 w-5 text-primary" />
-              {editingDoctor ? `Edit Profile & Available Days: ${editingDoctor.name}` : "Add New Doctor to Practice"}
-            </DialogTitle>
+        <DialogContent className="sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl w-[95vw] max-h-[92vh] overflow-y-auto p-6 sm:p-8 rounded-3xl shadow-2xl">
+          <DialogHeader className="border-b pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl font-extrabold text-foreground flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
+                  <span>{editingDoctor ? `Edit Profile & Available Schedule: ${editingDoctor.name}` : "Add New Doctor to Practice"}</span>
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Configure doctor portrait photo, certificates, slot intervals, fees, and weekly chamber visiting days.
+                </p>
+              </div>
+            </div>
           </DialogHeader>
 
           {formError && (
-            <div className="p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs flex items-center gap-2 mt-2">
+            <div className="p-3.5 rounded-2xl bg-rose-50 text-rose-700 border border-rose-200 text-xs flex items-center gap-2 mt-2">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{formError}</span>
+              <span className="font-medium">{formError}</span>
             </div>
           )}
 
           <form onSubmit={handleSave} className="space-y-6 pt-2">
-            {/* 1. Photo & Certificate Section */}
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-4">
-              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Camera className="h-4 w-4 text-primary" /> 1. Doctor Picture & Verification Document
-              </h4>
+            {/* 2-Column Desktop Studio Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* ─── LEFT COLUMN (Col 1-6): Profile, Uploads, Practice Rules & Details ─── */}
+              <div className="lg:col-span-6 space-y-5">
+                {/* 1. Photo & Certificate Section */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-muted/40 border border-border/80 space-y-4">
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Camera className="h-4 w-4 text-primary" /> 1. Doctor Picture & Verification Document
+                  </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Doctor Picture Upload with Large Clear Portrait Frame */}
-                <div className="p-3.5 rounded-xl bg-background border flex flex-col justify-between space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="relative h-28 w-24 rounded-2xl border-2 border-dashed border-primary/40 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-xs cursor-pointer group"
-                      onClick={() => image && setPreviewImage({ url: getMediaUrl(image), name: name || "Doctor Picture" })}
-                      title={image ? "Click to view full uncropped photo" : "No photo uploaded"}
-                    >
-                      {image ? (
-                        <>
-                          <img
-                            src={getMediaUrl(image)}
-                            alt="Doctor preview"
-                            className="h-full w-full object-cover object-top"
-                          />
-                          <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Maximize2 className="h-4 w-4 text-white" />
-                          </div>
-                        </>
-                      ) : (
-                        <Camera className="h-8 w-8 text-muted-foreground/40" />
-                      )}
-                      {uploadingImage && (
-                        <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Doctor Picture Upload with Large Clear Portrait Frame */}
+                    <div className="p-3.5 rounded-xl bg-background border flex flex-col justify-between space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="relative h-28 w-24 rounded-2xl border-2 border-dashed border-primary/40 bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-xs cursor-pointer group"
+                          onClick={() => image && setPreviewImage({ url: getMediaUrl(image), name: name || "Doctor Picture" })}
+                          title={image ? "Click to view full uncropped photo" : "No photo uploaded"}
+                        >
+                          {image ? (
+                            <>
+                              <img
+                                src={getMediaUrl(image)}
+                                alt="Doctor preview"
+                                className="h-full w-full object-cover object-top"
+                              />
+                              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Maximize2 className="h-4 w-4 text-white" />
+                              </div>
+                            </>
+                          ) : (
+                            <Camera className="h-8 w-8 text-muted-foreground/40" />
+                          )}
+                          {uploadingImage && (
+                            <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            </div>
+                          )}
                         </div>
-                      )}
+
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <Label className="text-xs font-bold text-foreground">Doctor Portrait Photo</Label>
+                          <p className="text-[10px] text-muted-foreground leading-tight">
+                            Face framed from top. Click thumbnail to view uncropped photo.
+                          </p>
+                          <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                            <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs">
+                              <Upload className="h-3 w-3" />
+                              <span>{image ? "Change Photo" : "Upload Photo"}</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleImageUpload}
+                                disabled={uploadingImage}
+                              />
+                            </label>
+                            {image && (
+                              <button
+                                type="button"
+                                onClick={() => setImage("")}
+                                className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 transition-all cursor-pointer"
+                                title="Remove picture"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="space-y-1.5 flex-1 min-w-0">
-                      <Label className="text-xs font-bold text-foreground">Doctor Portrait Photo</Label>
-                      <p className="text-[10px] text-muted-foreground leading-tight">
-                        Face is automatically framed from top. Click thumbnail to inspect full picture.
-                      </p>
-                      <div className="pt-1 flex flex-wrap items-center gap-1.5">
-                        <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs">
-                          <Upload className="h-3 w-3" />
-                          <span>{image ? "Change Photo" : "Upload Photo"}</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleImageUpload}
-                            disabled={uploadingImage}
-                          />
-                        </label>
-                        {image && (
+                    {/* Doctor Certificate / License */}
+                    <div className="p-3.5 rounded-xl bg-background border flex flex-col justify-between space-y-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <FileCheck className="h-4 w-4 text-primary" /> Medical License / BMDC Certificate
+                        </Label>
+                        <p className="text-[10px] text-muted-foreground">
+                          Upload registration or degree credentials (PDF, PNG, JPG, max 10MB)
+                        </p>
+                      </div>
+
+                      {certificate ? (
+                        <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-xs flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <div className="truncate">
+                              <p className="font-semibold text-emerald-950 text-xs truncate">
+                                {certificateName || "Doctor_Certificate"}
+                              </p>
+                              <a
+                                href={getMediaUrl(certificate)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-emerald-700 font-semibold hover:underline inline-flex items-center gap-0.5"
+                              >
+                                Open Document <ExternalLink className="h-2.5 w-2.5" />
+                              </a>
+                            </div>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => setImage("")}
-                            className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 transition-all"
-                            title="Remove picture"
+                            onClick={() => {
+                              setCertificate("");
+                              setCertificateName("");
+                            }}
+                            className="p-1 rounded-lg text-rose-500 hover:bg-rose-100 shrink-0 cursor-pointer"
+                            title="Remove certificate"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <X className="h-4 w-4" />
                           </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Doctor Certificate / License */}
-                <div className="p-3.5 rounded-xl bg-background border flex flex-col justify-between space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <FileCheck className="h-4 w-4 text-primary" /> Medical License / BMDC Certificate
-                    </Label>
-                    <p className="text-[10px] text-muted-foreground">
-                      Upload registration or degree credentials (PDF, PNG, JPG, max 10MB)
-                    </p>
-                  </div>
-
-                  {certificate ? (
-                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-xs flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
-                        <div className="truncate">
-                          <p className="font-semibold text-emerald-950 text-xs truncate">
-                            {certificateName || "Doctor_Certificate"}
-                          </p>
-                          <a
-                            href={getMediaUrl(certificate)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-emerald-700 font-semibold hover:underline inline-flex items-center gap-0.5"
-                          >
-                            Open Document <ExternalLink className="h-2.5 w-2.5" />
-                          </a>
                         </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCertificate("");
-                          setCertificateName("");
-                        }}
-                        className="p-1 rounded-lg text-rose-500 hover:bg-rose-100 shrink-0"
-                        title="Remove certificate"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                      ) : (
+                        <div>
+                          <label className="cursor-pointer w-full inline-flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-border hover:border-primary/50 bg-muted/20 text-xs text-muted-foreground hover:text-foreground transition-all">
+                            {uploadingCert ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                                <span>Uploading certificate...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 text-primary" />
+                                <span>Browse Certificate (PDF / Image)</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept=".pdf,image/*"
+                              className="hidden"
+                              onChange={handleCertUpload}
+                              disabled={uploadingCert}
+                            />
+                          </label>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div>
-                      <label className="cursor-pointer w-full inline-flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-border hover:border-primary/50 bg-muted/20 text-xs text-muted-foreground hover:text-foreground transition-all">
-                        {uploadingCert ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            <span>Uploading certificate...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 text-primary" />
-                            <span>Browse Certificate (PDF / Image)</span>
-                          </>
-                        )}
-                        <input
-                          type="file"
-                          accept=".pdf,image/*"
-                          className="hidden"
-                          onChange={handleCertUpload}
-                          disabled={uploadingCert}
-                        />
-                      </label>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* 2. Slot Duration & Auto-Approval Settings */}
-            <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-4">
-              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-primary" /> 2. Consultation Slots & Booking Rules
-              </h4>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Slot Duration Interactive Pills */}
-                <div className="space-y-2 p-3.5 rounded-xl bg-background border">
-                  <Label className="text-xs font-bold text-foreground flex items-center gap-1">
-                    Slot Duration: <span className="text-primary font-extrabold">{slotDuration} Minutes</span>
-                  </Label>
-                  <p className="text-[10px] text-muted-foreground">
-                    Click to select how much time is reserved per patient:
-                  </p>
-                  <div className="grid grid-cols-3 gap-1.5 pt-1">
-                    {SLOT_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setSlotDuration(opt.value)}
-                        className={`py-1.5 px-2 rounded-xl text-xs font-semibold border transition-all text-center cursor-pointer ${
-                          slotDuration === opt.value
-                            ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                            : "bg-muted/30 text-foreground border-border hover:bg-muted"
-                        }`}
-                      >
-                        <div>{opt.label}</div>
-                      </button>
-                    ))}
                   </div>
                 </div>
 
-                {/* Auto Approve Toggle Card */}
-                <div className="p-3.5 rounded-xl bg-background border flex flex-col justify-between space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="text-xs font-bold text-foreground">Auto-Approve Bookings</Label>
-                      <p className="text-[10px] text-muted-foreground">
-                        {autoApprove ? "Instant Confirmed status" : "Requires manual confirmation"}
-                      </p>
-                    </div>
-
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={autoApprove}
-                        onChange={(e) => setAutoApprove(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
-
-                  <div className={`p-2 rounded-xl text-[11px] leading-tight font-medium ${autoApprove ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-amber-50 text-amber-800 border border-amber-200"}`}>
-                    {autoApprove
-                      ? "✓ Patient bookings are automatically CONFIRMED right away."
-                      : "⏳ Patient bookings stay PENDING until confirmed by doctor or assistant."}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. Weekly Availability & Visiting Days (সপ্তাহে উপস্থিতির দিন ও সময়) */}
-            <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2.5">
-                <div>
+                {/* 2. Slot Duration & Auto-Approval Settings */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-primary/5 border border-primary/20 space-y-4">
                   <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4 text-primary" /> 3. Weekly Visiting Days & Hours (ডাক্তার কোন কোন দিন চেম্বারে বসবেন)
+                    <Clock className="h-4 w-4 text-primary" /> 2. Consultation Slots & Booking Rules
                   </h4>
-                  <p className="text-[11px] text-muted-foreground">
-                    ডাক্তার সপ্তাহের যেসব দিন উপস্থিত থাকবেন সেগুলো অন (On) রাখুন এবং শুরু ও শেষ সময় নির্ধারণ করুন।
-                  </p>
-                </div>
 
-                {/* Quick Preset Buttons */}
-                <div className="flex flex-wrap items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[10px] rounded-lg"
-                    onClick={() => applyPreset("SAT_THU")}
-                  >
-                    Sat – Thu (Default)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[10px] rounded-lg"
-                    onClick={() => applyPreset("ALL")}
-                  >
-                    All 7 Days
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[10px] rounded-lg"
-                    onClick={() => applyPreset("MON_FRI")}
-                  >
-                    Mon – Fri
-                  </Button>
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Slot Duration Interactive Pills */}
+                    <div className="space-y-2 p-3.5 rounded-xl bg-background border">
+                      <Label className="text-xs font-bold text-foreground flex items-center gap-1">
+                        Slot Duration: <span className="text-primary font-extrabold">{slotDuration} Minutes</span>
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground">
+                        Click to select how much time is reserved per patient:
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5 pt-1">
+                        {SLOT_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setSlotDuration(opt.value)}
+                            className={`py-1.5 px-2 rounded-xl text-xs font-semibold border transition-all text-center cursor-pointer ${
+                              slotDuration === opt.value
+                                ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                                : "bg-muted/30 text-foreground border-border hover:bg-muted"
+                            }`}
+                          >
+                            <div>{opt.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-              {/* Day-by-Day List */}
-              <div className="space-y-2">
-                {weeklySchedule.map((day, idx) => (
-                  <div
-                    key={day.dayOfWeek}
-                    className={`p-3 rounded-xl border transition-all ${
-                      day.enabled
-                        ? "bg-background border-border/80 shadow-2xs"
-                        : "bg-muted/20 border-dashed border-border/60 opacity-60"
-                    }`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      {/* Day Toggle & Name */}
-                      <div className="flex items-center gap-3 sm:w-56">
+                    {/* Auto Approve Toggle Card */}
+                    <div className="p-3.5 rounded-xl bg-background border flex flex-col justify-between space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-xs font-bold text-foreground">Auto-Approve Bookings</Label>
+                          <p className="text-[10px] text-muted-foreground">
+                            {autoApprove ? "Instant Confirmed status" : "Requires manual confirmation"}
+                          </p>
+                        </div>
+
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={day.enabled}
-                            onChange={(e) => updateDaySchedule(idx, { enabled: e.target.checked })}
+                            checked={autoApprove}
+                            onChange={(e) => setAutoApprove(e.target.checked)}
                             className="sr-only peer"
                           />
-                          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                         </label>
-
-                        <span className="font-bold text-xs text-foreground">
-                          {day.name}
-                        </span>
-
-                        {day.enabled ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] px-1.5 py-0">
-                            Available
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0">
-                            Off
-                          </Badge>
-                        )}
                       </div>
 
-                      {/* Time Inputs */}
-                      {day.enabled ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-muted-foreground">From:</span>
-                            <input
-                              type="time"
-                              value={day.startTime}
-                              onChange={(e) => updateDaySchedule(idx, { startTime: e.target.value })}
-                              className="h-8 px-2 text-xs rounded-lg border bg-background font-semibold"
-                            />
-                          </div>
+                      <div className={`p-2 rounded-xl text-[11px] leading-tight font-medium ${autoApprove ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-amber-50 text-amber-800 border border-amber-200"}`}>
+                        {autoApprove
+                          ? "✓ Patient bookings are automatically CONFIRMED right away."
+                          : "⏳ Patient bookings stay PENDING until confirmed by doctor or assistant."}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-muted-foreground">To:</span>
-                            <input
-                              type="time"
-                              value={day.endTime}
-                              onChange={(e) => updateDaySchedule(idx, { endTime: e.target.value })}
-                              className="h-8 px-2 text-xs rounded-lg border bg-background font-semibold"
-                            />
-                          </div>
+                {/* 3. Doctor Information */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-background border space-y-4">
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <User className="h-4 w-4 text-primary" /> 3. Doctor Professional Details
+                  </h4>
 
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-muted-foreground">Capacity:</span>
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={day.maxPatients}
-                              onChange={(e) => updateDaySchedule(idx, { maxPatients: Number(e.target.value) || 20 })}
-                              className="h-8 w-16 px-2 text-xs rounded-lg border bg-background font-semibold"
-                              title="Max patients for this day"
-                            />
-                          </div>
-                        </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Doctor Full Name *</Label>
+                      <Input
+                        placeholder="e.g. Dr. Alexander Wright"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className="rounded-xl h-10"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Qualifications / Degrees</Label>
+                      <Input
+                        placeholder="e.g. MBBS, FCPS, MD"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="rounded-xl h-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Specialization *</Label>
+                      <Input
+                        placeholder="e.g. Cardiologist, General Physician"
+                        value={specialization}
+                        onChange={(e) => setSpecialization(e.target.value)}
+                        required
+                        className="rounded-xl h-10"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Medical Department</Label>
+                      {departmentsList.length > 0 ? (
+                        <select
+                          value={departmentId}
+                          onChange={(e) => setDepartmentId(e.target.value)}
+                          className="w-full h-10 px-3 text-xs rounded-xl border bg-background font-medium"
+                        >
+                          {departmentsList.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                            </option>
+                          ))}
+                        </select>
                       ) : (
-                        <div className="text-[11px] text-muted-foreground italic">
-                          চেম্বার বন্ধ (No slots generated on this day)
-                        </div>
+                        <Input
+                          placeholder="e.g. General Medicine, Cardiology"
+                          value={customDeptName}
+                          onChange={(e) => setCustomDeptName(e.target.value)}
+                          className="rounded-xl h-10"
+                        />
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* 4. Doctor Information */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <User className="h-4 w-4 text-primary" /> 4. Doctor Professional Details
-              </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Consultation Fee (৳) *</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={consultationFee}
+                        onChange={(e) => setConsultationFee(Number(e.target.value))}
+                        required
+                        className="rounded-xl h-10 font-bold"
+                      />
+                    </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Doctor Full Name *</Label>
-                  <Input
-                    placeholder="e.g. Dr. Alexander Wright"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    className="rounded-xl h-10"
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Experience (Years)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={experienceYears}
+                        onChange={(e) => setExperienceYears(Number(e.target.value))}
+                        className="rounded-xl h-10"
+                      />
+                    </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Qualifications / Degrees</Label>
-                  <Input
-                    placeholder="e.g. MBBS, FCPS, MD"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="rounded-xl h-10"
-                  />
-                </div>
-              </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Chamber Phone</Label>
+                      <Input
+                        placeholder="01700112233"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="rounded-xl h-10"
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Specialization *</Label>
-                  <Input
-                    placeholder="e.g. Cardiologist, General Physician"
-                    value={specialization}
-                    onChange={(e) => setSpecialization(e.target.value)}
-                    required
-                    className="rounded-xl h-10"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Medical Department</Label>
-                  {departmentsList.length > 0 ? (
-                    <select
-                      value={departmentId}
-                      onChange={(e) => setDepartmentId(e.target.value)}
-                      className="w-full h-10 px-3 text-xs rounded-xl border bg-background font-medium"
-                    >
-                      {departmentsList.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Chamber Room & Location</Label>
                     <Input
-                      placeholder="e.g. General Medicine, Cardiology"
-                      value={customDeptName}
-                      onChange={(e) => setCustomDeptName(e.target.value)}
+                      placeholder="e.g. Room 101, DoctorPro Clinic"
+                      value={chamberAddress}
+                      onChange={(e) => setChamberAddress(e.target.value)}
                       className="rounded-xl h-10"
                     />
-                  )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Professional Bio & Experience</Label>
+                    <Textarea
+                      placeholder="Specialist background, previous hospital affiliations, and medical expertise..."
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      rows={3}
+                      className="rounded-xl resize-none text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Consultation Fee (৳) *</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={consultationFee}
-                    onChange={(e) => setConsultationFee(Number(e.target.value))}
-                    required
-                    className="rounded-xl h-10 font-bold"
-                  />
+              {/* ─── RIGHT COLUMN (Col 7-12): Weekly Visiting Schedule (সপ্তাহে উপস্থিতির দিন ও সময়) ─── */}
+              <div className="lg:col-span-6 space-y-5">
+                <div className="p-4 sm:p-5 rounded-2xl bg-muted/40 border border-border/80 space-y-4 h-full flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Calendar className="h-4 w-4 text-primary" /> 4. Weekly Visiting Days & Hours
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          চেম্বারে যেসব দিন বসবেন সেগুলো অন রাখুন এবং সময় সেট করুন।
+                        </p>
+                      </div>
+
+                      {/* Quick Preset Buttons */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[10px] rounded-lg font-semibold bg-background hover:bg-slate-100"
+                          onClick={() => applyPreset("SAT_THU")}
+                        >
+                          Sat – Thu
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[10px] rounded-lg font-semibold bg-background hover:bg-slate-100"
+                          onClick={() => applyPreset("ALL")}
+                        >
+                          All 7 Days
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[10px] rounded-lg font-semibold bg-background hover:bg-slate-100"
+                          onClick={() => applyPreset("MON_FRI")}
+                        >
+                          Mon – Fri
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Day-by-Day List */}
+                    <div className="space-y-2.5">
+                      {weeklySchedule.map((day, idx) => (
+                        <div
+                          key={day.dayOfWeek}
+                          className={`p-3 rounded-2xl border transition-all ${
+                            day.enabled
+                              ? "bg-background border-border shadow-xs"
+                              : "bg-muted/30 border-dashed border-border/60 opacity-60"
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            {/* Day Toggle & Name */}
+                            <div className="flex items-center gap-3 sm:w-52 shrink-0">
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={day.enabled}
+                                  onChange={(e) => updateDaySchedule(idx, { enabled: e.target.checked })}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                              </label>
+
+                              <div>
+                                <span className="font-bold text-xs text-foreground block">
+                                  {day.name}
+                                </span>
+                                {day.enabled ? (
+                                  <span className="text-[10px] text-emerald-700 font-semibold">
+                                    Chamber Active
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    Off Day
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Time & Capacity Inputs */}
+                            {day.enabled ? (
+                              <div className="flex flex-wrap items-center gap-2.5">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-muted-foreground">From:</span>
+                                  <input
+                                    type="time"
+                                    value={day.startTime}
+                                    onChange={(e) => updateDaySchedule(idx, { startTime: e.target.value })}
+                                    className="h-8 px-2 text-xs rounded-xl border bg-background font-semibold"
+                                  />
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-muted-foreground">To:</span>
+                                  <input
+                                    type="time"
+                                    value={day.endTime}
+                                    onChange={(e) => updateDaySchedule(idx, { endTime: e.target.value })}
+                                    className="h-8 px-2 text-xs rounded-xl border bg-background font-semibold"
+                                  />
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-muted-foreground" title="Maximum Patients quota">Max:</span>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={day.maxPatients}
+                                    onChange={(e) => updateDaySchedule(idx, { maxPatients: Number(e.target.value) || 20 })}
+                                    className="h-8 w-14 px-1.5 text-xs rounded-xl border bg-background font-bold text-center"
+                                    title="Max patient capacity"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-muted-foreground italic">
+                                চেম্বার বন্ধ (No slots generated on this day)
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/20 border border-sky-200 text-sky-900 dark:text-sky-200 text-xs flex items-center gap-2 mt-4">
+                    <CheckCircle2 className="h-4 w-4 text-sky-600 shrink-0" />
+                    <span>Patients will only be able to book online slots on the enabled days and times configured above.</span>
+                  </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Experience (Years)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={experienceYears}
-                    onChange={(e) => setExperienceYears(Number(e.target.value))}
-                    className="rounded-xl h-10"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Chamber Phone</Label>
-                  <Input
-                    placeholder="01700112233"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="rounded-xl h-10"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Chamber Room & Location</Label>
-                <Input
-                  placeholder="e.g. Room 101, DoctorPro Clinic"
-                  value={chamberAddress}
-                  onChange={(e) => setChamberAddress(e.target.value)}
-                  className="rounded-xl h-10"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Professional Bio & Experience</Label>
-                <Textarea
-                  placeholder="Specialist background, previous hospital affiliations, and medical expertise..."
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  rows={3}
-                  className="rounded-xl resize-none text-xs"
-                />
               </div>
             </div>
 
             {/* Bottom Actions Bar */}
-            <div className="pt-3 flex items-center justify-end gap-2 border-t">
-              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl">
+            <div className="pt-4 flex items-center justify-end gap-3 border-t">
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="rounded-xl px-5">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={saving || uploadingImage || uploadingCert}
-                className="bg-primary hover:bg-primary/90 min-w-36 rounded-xl text-xs font-semibold shadow-xs"
+                className="bg-primary hover:bg-primary/90 min-w-44 h-11 rounded-xl text-xs font-bold shadow-md"
               >
                 {saving ? (
                   <span className="flex items-center gap-1.5">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...
+                    <Loader2 className="h-4 w-4 animate-spin" /> Saving Doctor & Schedule...
                   </span>
                 ) : editingDoctor ? (
-                  "Save Doctor & Schedule"
+                  "Save Doctor & Schedule Changes"
                 ) : (
-                  "Create Doctor"
+                  "Create Doctor Profile"
                 )}
               </Button>
             </div>
