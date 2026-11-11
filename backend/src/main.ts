@@ -33,9 +33,39 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS
+  // Enable CORS across local development and deployed frontend origins
+  const allowedOrigins = new Set<string>([
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ]);
+  const registerOriginList = (raw?: string) => {
+    if (!raw) return;
+    for (const part of raw.split(',')) {
+      const cleaned = part.trim().replace(/\/+$/, '');
+      if (cleaned) allowedOrigins.add(cleaned);
+    }
+  };
+  registerOriginList(process.env.FRONTEND_URL);
+  registerOriginList(process.env.CORS_ORIGIN);
+  if (process.env.VERCEL_URL) {
+    allowedOrigins.add(`https://${process.env.VERCEL_URL}`);
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    allowedOrigins.add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
+
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const normalized = origin.replace(/\/+$/, '');
+      if (
+        allowedOrigins.has(normalized) ||
+        /^https:\/\/doctorpro[a-z0-9-]*\.vercel\.app$/i.test(normalized)
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
@@ -59,19 +89,23 @@ async function bootstrap() {
   // Global interceptors
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  // Swagger setup
-  const config = new DocumentBuilder()
-    .setTitle('DoctorPro API')
-    .setDescription('DoctorPro Medical Website API Documentation')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  // Swagger setup (local / explicit opt-in; skip bundling static assets on Vercel)
+  if (!process.env.VERCEL || process.env.ENABLE_SWAGGER === 'true') {
+    try {
+      const config = new DocumentBuilder()
+        .setTitle('DoctorPro API')
+        .setDescription('DoctorPro Medical Website API Documentation')
+        .setVersion('1.0')
+        .addBearerAuth()
+        .build();
+      const document = SwaggerModule.createDocument(app, config);
+      SwaggerModule.setup('api/docs', app, document);
+    } catch {}
+  }
 
-  await app.listen(4000);
-  console.log(`🚀 DoctorPro API running on http://localhost:4000`);
-  console.log(`📚 Swagger docs at http://localhost:4000/api/docs`);
+  const port = Number(process.env.PORT) || 4000;
+  await app.listen(port);
+  console.log(`DoctorPro API running on port ${port}`);
 }
 
 bootstrap();

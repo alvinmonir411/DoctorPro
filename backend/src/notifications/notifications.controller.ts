@@ -6,9 +6,12 @@ import {
   Body,
   Query,
   Req,
+  Headers,
   UseGuards,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { NotificationsService } from './notifications.service';
 import {
   SubscribePushDto,
@@ -138,5 +141,27 @@ export class NotificationsController {
       throw new BadRequestException('Doctor profile ID is required.');
     }
     return this.notificationsService.sendDoctorTestEmail(targetDoctorId, dto.to);
+  }
+
+  @Public()
+  @Post('reminders/run')
+  async runReminders(@Headers('authorization') authHeader?: string) {
+    const secret = process.env.CRON_SECRET?.trim();
+    const expected = secret ? `Bearer ${secret}` : '';
+    const provided = authHeader?.trim() || '';
+    const valid =
+      Boolean(secret) &&
+      provided.length === expected.length &&
+      timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+
+    if (!valid) {
+      throw new UnauthorizedException('Invalid or missing cron authorization.');
+    }
+
+    await this.notificationsService.sendUpcomingReminders();
+    return {
+      ok: true,
+      ranAt: new Date().toISOString(),
+    };
   }
 }

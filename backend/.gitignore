@@ -13,3 +13,8 @@ uploads/
 .vscode/
 .idea/
 *.tsbuildinfo
+
+.vercel
+.env
+.env.*
+!.env.example

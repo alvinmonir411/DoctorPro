@@ -8,9 +8,13 @@ import { JwtStrategy } from './jwt.strategy';
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.register({
-      secret: 'doctorpro-jwt-secret-key-2024',
-      signOptions: { expiresIn: '7d' },
+    JwtModule.registerAsync({
+      useFactory: () => ({
+        secret: process.env.JWT_SECRET || 'doctorpro-jwt-secret-key-2024',
+        signOptions: {
+          expiresIn: (process.env.JWT_EXPIRATION || '7d') as any,
+        },
+      }),
     }),
   ],
   controllers: [AuthController],

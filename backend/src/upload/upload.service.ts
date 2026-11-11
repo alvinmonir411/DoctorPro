@@ -57,7 +57,13 @@ export class UploadService {
       };
     }
 
-    // Fallback to local storage if Cloudinary env vars are missing
+    if (process.env.VERCEL) {
+      throw new BadRequestException(
+        'Cloudinary environment variables are required for file uploads on Vercel.',
+      );
+    }
+
+    // Fallback to local storage if Cloudinary env vars are missing (local/VPS only)
     const uploadDir = join(process.cwd(), 'uploads');
     if (!existsSync(uploadDir)) {
       mkdirSync(uploadDir, { recursive: true });

@@ -4,7 +4,8 @@
   "description": "DoctorPro Backend - NestJS API",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate && nest build",
+    "postinstall": "prisma generate",
     "start": "nest start",
     "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -21,7 +22,7 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
-    "@nestjs/schedule": "^12.0.3",
+    "@nestjs/schedule": "^6.1.3",
     "@nestjs/serve-static": "^5.0.0",
     "@nestjs/swagger": "^11.0.0",
     "@prisma/client": "^6.0.0",
@@ -34,9 +35,10 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
+    "prisma": "^6.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "web-push": "^4.0.0"
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -49,7 +51,6 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/web-push": "^3.6.4",
-    "prisma": "^6.0.0",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
