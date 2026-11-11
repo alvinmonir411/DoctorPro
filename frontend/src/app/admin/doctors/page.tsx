@@ -39,6 +39,7 @@ import { doctors as doctorsApi, departments as deptsApi, upload as uploadApi } f
 import { useAuth } from "@/lib/auth-context";
 import { getMediaUrl } from "@/lib/utils";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 const SLOT_OPTIONS = [
   { value: 10, label: "10 Min", desc: "Quick Visit" },
@@ -488,7 +489,12 @@ export default function AdminDoctorsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this doctor?")) return;
+    const confirmed = await confirmActionToast({
+      title: "Delete Doctor Profile",
+      description: "Are you sure you want to delete this doctor?",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
     try {
       await doctorsApi.delete(id);
       await loadData();

@@ -16,6 +16,7 @@ import {
 import { Activity, Plus, Pencil, Trash2 } from "lucide-react";
 import { services as servicesApi, departments as deptsApi } from "@/lib/api";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function AdminServicesPage() {
   const [servicesList, setServicesList] = useState<any[]>([]);
@@ -118,7 +119,12 @@ export default function AdminServicesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this service?")) return;
+    const confirmed = await confirmActionToast({
+      title: "Delete Service",
+      description: "Are you sure you want to delete this service?",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
     try {
       await servicesApi.delete(id);
       await loadData();

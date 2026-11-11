@@ -31,6 +31,7 @@ import { staff as staffApi, doctors as doctorsApi, auth as authApi } from "@/lib
 import { getMediaUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function AdminStaffPage() {
   const { user: currentUser } = useAuth();
@@ -177,7 +178,12 @@ export default function AdminStaffPage() {
       toast.error("Action Denied", { description: "The primary administrator cannot be deleted." });
       return;
     }
-    if (!confirm(`Are you sure you want to delete ${st.name}'s account?`)) return;
+    const confirmed = await confirmActionToast({
+      title: "Delete Staff Account",
+      description: `Are you sure you want to delete ${st.name}'s account?`,
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
 
     try {
       await staffApi.delete(st.id);
@@ -209,7 +215,12 @@ export default function AdminStaffPage() {
   };
 
   const handleRejectDoctor = async (st: any) => {
-    if (!confirm(`Are you sure you want to decline Dr. ${st.name}'s registration?`)) return;
+    const confirmed = await confirmActionToast({
+      title: "Decline Doctor Registration",
+      description: `Are you sure you want to decline Dr. ${st.name}'s registration?`,
+      confirmLabel: "Decline",
+    });
+    if (!confirmed) return;
     try {
       const docId = st.doctorId || st.doctor?.id;
       if (!docId) {

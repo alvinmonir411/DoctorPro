@@ -16,6 +16,7 @@ import {
 import { FileText, Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { blog as blogApi } from "@/lib/api";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function AdminBlogPage() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -108,7 +109,12 @@ export default function AdminBlogPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this article?")) return;
+    const confirmed = await confirmActionToast({
+      title: "Delete Health Article?",
+      description: "This published article will be permanently deleted.",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
     try {
       await blogApi.delete(id);
       await loadPosts();

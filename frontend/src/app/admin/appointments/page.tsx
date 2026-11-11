@@ -22,6 +22,7 @@ import {
   APPOINTMENT_STATUS_FILTERS,
 } from "@/components/admin/appointment-status";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function AdminAppointmentsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -98,7 +99,12 @@ export default function AdminAppointmentsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this appointment record permanently?")) return;
+    const confirmed = await confirmActionToast({
+      title: "Delete Appointment?",
+      description: "This appointment record will be permanently removed.",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
     try {
       await appsApi.delete(id);
       await loadData();

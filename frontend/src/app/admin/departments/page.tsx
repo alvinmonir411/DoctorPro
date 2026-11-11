@@ -16,6 +16,7 @@ import {
 import { Building2, Plus, Pencil, Trash2 } from "lucide-react";
 import { departments as deptsApi } from "@/lib/api";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function AdminDepartmentsPage() {
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
@@ -87,7 +88,12 @@ export default function AdminDepartmentsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this department?")) return;
+    const confirmed = await confirmActionToast({
+      title: "Delete Department?",
+      description: "This medical department will be permanently deleted.",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
     try {
       await deptsApi.delete(id);
       await loadDepartments();

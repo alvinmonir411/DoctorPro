@@ -9,6 +9,7 @@ import { Users, Search, Phone, Mail, MapPin, Calendar, Trash2 } from "lucide-rea
 import { patients as patientsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function AdminPatientsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -44,7 +45,12 @@ export default function AdminPatientsPage() {
   }, [authLoading, userRole, user?.doctorId]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this patient record?")) return;
+    const confirmed = await confirmActionToast({
+      title: "Delete Patient Record",
+      description: "Are you sure you want to delete this patient record?",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
     try {
       await patientsApi.delete(id);
       await loadPatients();

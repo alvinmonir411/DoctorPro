@@ -15,6 +15,7 @@ import { Image as ImageIcon, Plus, Trash2, Upload, Loader2 } from "lucide-react"
 import { gallery as galleryApi, upload as uploadApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function AdminGalleryPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -107,7 +108,12 @@ export default function AdminGalleryPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this photo?")) return;
+    const confirmed = await confirmActionToast({
+      title: "Delete Photo",
+      description: "Are you sure you want to delete this photo?",
+      confirmLabel: "Delete",
+    });
+    if (!confirmed) return;
     try {
       await galleryApi.delete(id);
       toast.success("Photo Deleted", { description: "Gallery item removed." });

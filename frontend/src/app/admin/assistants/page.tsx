@@ -30,6 +30,7 @@ import {
 import { auth as authApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function DoctorAssistantsPage() {
   const { user } = useAuth();
@@ -120,7 +121,12 @@ export default function DoctorAssistantsPage() {
   };
 
   const handleDelete = async (assistant: any) => {
-    if (!confirm(`Are you sure you want to remove assistant ${assistant.name}?`)) return;
+    const confirmed = await confirmActionToast({
+      title: `Remove Assistant ${assistant.name}?`,
+      description: "This assistant account will immediately lose portal access.",
+      confirmLabel: "Remove",
+    });
+    if (!confirmed) return;
 
     try {
       await authApi.deleteMyAssistant(assistant.id);
