@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/dialog";
 import { doctors as doctorsApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
+import { StarRatingDisplay } from "@/components/public/StarRating";
+import { DoctorReviewsSection } from "@/components/public/DoctorReviewsSection";
 
 const DAYS_MAP = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -38,20 +40,21 @@ export default function DoctorDetailPage() {
   const [loading, setLoading] = useState(true);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  useEffect(() => {
-    async function fetchDoctor() {
-      try {
-        if (!slug) return;
-        const res = await doctorsApi.getBySlug(slug);
-        setDoctor(res);
-      } catch (err) {
-        console.error("Failed to load doctor profile", err);
-      } finally {
-        setLoading(false);
-      }
+  const loadDoctor = useCallback(async () => {
+    try {
+      if (!slug) return;
+      const res = await doctorsApi.getBySlug(slug);
+      setDoctor(res);
+    } catch (err) {
+      console.error("Failed to load doctor profile", err);
+    } finally {
+      setLoading(false);
     }
-    fetchDoctor();
   }, [slug]);
+
+  useEffect(() => {
+    loadDoctor();
+  }, [loadDoctor]);
 
   if (loading) {
     return (
@@ -125,6 +128,21 @@ export default function DoctorDetailPage() {
                 </div>
                 <p className="text-primary font-semibold text-sm mt-0.5">{doctor.specialization}</p>
                 <p className="text-xs text-muted-foreground">{doctor.title}</p>
+                <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2.5">
+                  <StarRatingDisplay
+                    rating={doctor.averageRating}
+                    reviewCount={doctor.reviewCount}
+                    size="sm"
+                  />
+                  <a
+                    href="#reviews"
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    {(doctor.reviewCount || 0) > 0
+                      ? "Read Reviews"
+                      : "Leave a Review"}
+                  </a>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-muted-foreground pt-1">
@@ -229,6 +247,17 @@ export default function DoctorDetailPage() {
             </Card>
           </div>
         </div>
+
+        {/* Verified Patient Reviews & Rating Breakdown */}
+        <DoctorReviewsSection
+          doctorId={doctor.id}
+          doctorName={doctor.name}
+          averageRating={doctor.averageRating}
+          reviewCount={doctor.reviewCount}
+          ratingBreakdown={doctor.ratingBreakdown}
+          reviews={doctor.reviews}
+          onReviewCreated={loadDoctor}
+        />
       </div>
 
       {/* Lightbox Dialog to View Full Picture */}

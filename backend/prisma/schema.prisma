@@ -71,6 +71,7 @@ model Doctor {
   department   Department          @relation(fields: [departmentId], references: [id])
   schedules    Schedule[]
   appointments Appointment[]
+  reviews      DoctorReview[]
   emailConfig  DoctorEmailConfig?
 
   @@index([slug])
@@ -162,6 +163,7 @@ model Patient {
   updatedAt   DateTime @updatedAt
 
   appointments Appointment[]
+  reviews      DoctorReview[]
 
   @@index([phone])
   @@index([email])
@@ -185,6 +187,7 @@ model Appointment {
   patient           Patient            @relation(fields: [patientId], references: [id])
   doctor            Doctor             @relation(fields: [doctorId], references: [id])
   pushSubscriptions PushSubscription[]
+  review            DoctorReview?
 
   @@index([patientId])
   @@index([doctorId])
@@ -274,4 +277,27 @@ model Testimonial {
 
   @@index([isActive])
   @@index([rating])
+}
+
+model DoctorReview {
+  id            String   @id @default(uuid())
+  doctorId      String
+  patientId     String
+  appointmentId String   @unique
+  patientName   String
+  rating        Int      // 1-5
+  comment       String
+  isVerified    Boolean  @default(true)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  doctor      Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([rating])
+  @@index([createdAt])
 }

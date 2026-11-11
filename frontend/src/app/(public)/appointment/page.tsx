@@ -150,6 +150,13 @@ function AppointmentContent() {
         notes: notes || undefined,
       });
       setSuccessBooking(res);
+      if (typeof window !== "undefined" && patientPhone.trim()) {
+        try {
+          localStorage.setItem("doctorpro_last_phone", patientPhone.trim());
+        } catch {
+          // Ignore storage error
+        }
+      }
       toast.success(
         res?.status === "CONFIRMED"
           ? "Appointment Confirmed!"

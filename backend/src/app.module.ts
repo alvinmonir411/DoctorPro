@@ -15,6 +15,7 @@ import { BlogModule } from './blog/blog.module';
 import { GalleryModule } from './gallery/gallery.module';
 import { SettingsModule } from './settings/settings.module';
 import { TestimonialsModule } from './testimonials/testimonials.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { UploadModule } from './upload/upload.module';
 import { AiModule } from './ai/ai.module';
@@ -43,6 +44,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     GalleryModule,
     SettingsModule,
     TestimonialsModule,
+    ReviewsModule,
     DashboardModule,
     UploadModule,
     AiModule,

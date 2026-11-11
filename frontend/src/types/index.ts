@@ -81,9 +81,61 @@ export interface Doctor {
   chamberAddress?: string;
   bmdcNumber?: string;
   schedules?: Schedule[];
+  averageRating?: number;
+  reviewCount?: number;
+  ratingBreakdown?: RatingBreakdown;
+  reviews?: DoctorReview[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RatingBreakdown {
+  5: number;
+  4: number;
+  3: number;
+  2: number;
+  1: number;
+}
+
+export interface DoctorReview {
+  id: string;
+  doctorId: string;
+  appointmentId: string;
+  patientName: string;
+  rating: number;
+  comment: string;
+  isVerified: boolean;
+  createdAt: string;
+  visitDate?: string | null;
+  visitSlot?: string | null;
+}
+
+export interface ReviewEligibility {
+  doctorId: string;
+  doctorName: string;
+  eligible: boolean;
+  reason: string;
+  message: string;
+  completedVisits: Array<{
+    appointmentId: string;
+    date: string;
+    timeSlot: string;
+    serialNumber?: number | null;
+    patientName: string;
+  }>;
+  reviewedVisits: Array<{
+    appointmentId: string;
+    date: string;
+    timeSlot: string;
+    review?: {
+      id: string;
+      rating: number;
+      comment: string;
+      createdAt: string;
+    } | null;
+  }>;
+  pendingVisitCount: number;
 }
 
 export interface Department {

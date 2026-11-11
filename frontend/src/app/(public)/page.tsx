@@ -30,6 +30,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { doctors as doctorsApi, services as servicesApi, blog as blogApi } from "@/lib/api";
+import { TopRatedDoctorsSlider } from "@/components/public/TopRatedDoctorsSlider";
 
 // ─── 8 Departments with pastel styling from reference design ───
 const DEPARTMENTS = [
@@ -313,6 +314,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <TopRatedDoctorsSlider />
 
       {/* ─────────────────────────────────────────────────────────────
           3. "A PRACTICE BUILT AROUND YOU" OVERVIEW SECTION

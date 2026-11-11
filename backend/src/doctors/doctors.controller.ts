@@ -40,12 +40,16 @@ export class DoctorsController {
     @Query('specialization') specialization?: string,
     @Query('search') search?: string,
     @Query('activeOnly') activeOnly?: string,
+    @Query('topRated') topRated?: string,
+    @Query('sortBy') sortBy?: string,
   ) {
     return this.doctorsService.findAll({
       departmentId,
       specialization,
       search,
       activeOnly: activeOnly === 'true',
+      topRated: topRated === 'true',
+      sortBy,
     });
   }
 

@@ -297,6 +297,28 @@ export const testimonials = {
 };
 
 // ---------------------------------------------------------------------------
+// Verified Doctor Reviews
+// ---------------------------------------------------------------------------
+
+export const reviews = {
+  checkEligibility: (doctorId: string, phone: string) =>
+    get<any>(
+      `/reviews/eligible?doctorId=${encodeURIComponent(doctorId)}&phone=${encodeURIComponent(phone)}`,
+    ),
+
+  getByDoctor: (doctorId: string) =>
+    get<any>(`/reviews/doctor/${encodeURIComponent(doctorId)}`),
+
+  create: (data: {
+    doctorId: string;
+    appointmentId: string;
+    phone: string;
+    rating: number;
+    comment: string;
+  }) => post<any>("/reviews", data),
+};
+
+// ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 
@@ -486,6 +508,7 @@ const api = {
   gallery,
   settings,
   testimonials,
+  reviews,
   dashboard,
   upload,
   ai,

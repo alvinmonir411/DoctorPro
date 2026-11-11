@@ -1,5 +1,9 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildRatingSummary,
+  formatPublicReview,
+} from '../common/utils/ratings';
 import { CreateDoctorDto, UpdateDoctorDto } from './dto/doctor.dto';
 import {
   assertNotAssistantRole,
@@ -89,10 +93,19 @@ export class DoctorsService {
     specialization?: string;
     search?: string;
     activeOnly?: boolean;
+    topRated?: boolean;
+    sortBy?: string;
   }) {
-    const { departmentId, specialization, search, activeOnly } = params || {};
+    const {
+      departmentId,
+      specialization,
+      search,
+      activeOnly,
+      topRated,
+      sortBy,
+    } = params || {};
 
-    return this.prisma.doctor.findMany({
+    const doctors = await this.prisma.doctor.findMany({
       where: {
         ...(departmentId ? { departmentId } : {}),
         ...(specialization ? { specialization: { contains: specialization } } : {}),
@@ -113,6 +126,58 @@ export class DoctorsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (doctors.length === 0) {
+      return [];
+    }
+
+    const aggregates = await this.prisma.doctorReview.groupBy({
+      by: ['doctorId'],
+      where: {
+        doctorId: { in: doctors.map((d) => d.id) },
+        isActive: true,
+      },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    const statsByDoctorId = new Map(
+      aggregates.map((item) => [
+        item.doctorId,
+        {
+          averageRating: Math.round(((item._avg.rating || 0) * 10)) / 10,
+          reviewCount: item._count.rating || 0,
+        },
+      ]),
+    );
+
+    const enriched = doctors.map((doc) => {
+      const stat = statsByDoctorId.get(doc.id);
+      return {
+        ...doc,
+        averageRating: stat?.averageRating ?? 0,
+        reviewCount: stat?.reviewCount ?? 0,
+      };
+    });
+
+    if (topRated || sortBy === 'rating') {
+      enriched.sort((a, b) => {
+        if (b.averageRating !== a.averageRating) {
+          return b.averageRating - a.averageRating;
+        }
+        if (b.reviewCount !== a.reviewCount) {
+          return b.reviewCount - a.reviewCount;
+        }
+        if ((b.experienceYears || 0) !== (a.experienceYears || 0)) {
+          return (b.experienceYears || 0) - (a.experienceYears || 0);
+        }
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      });
+    }
+
+    return enriched;
   }
 
   async findMyProfile(currentUser?: ScopedRequestUser) {
@@ -132,10 +197,27 @@ export class DoctorsService {
       include: {
         department: true,
         schedules: true,
+        reviews: {
+          where: { isActive: true },
+          include: {
+            appointment: {
+              select: { date: true, timeSlot: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     if (!doctor) throw new NotFoundException('Doctor not found');
-    return doctor;
+
+    const rawReviews = doctor.reviews || [];
+    const summary = buildRatingSummary(rawReviews);
+
+    return {
+      ...doctor,
+      ...summary,
+      reviews: rawReviews.map(formatPublicReview),
+    };
   }
 
   async update(id: string, dto: UpdateDoctorDto, currentUser?: ScopedRequestUser) {

@@ -32,6 +32,8 @@ import { getMediaUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { NotifyTurnButton } from "@/components/public/NotifyTurnButton";
 import { DoctorSearchSelect } from "@/components/public/DoctorSearchSelect";
+import { ReviewComposerForm } from "@/components/public/ReviewComposerForm";
+import { StarRatingDisplay } from "@/components/public/StarRating";
 
 function LiveQueueContent() {
   const searchParams = useSearchParams();
@@ -364,6 +366,64 @@ function LiveQueueContent() {
                 patientPhone={myQueue.patientPhone || phoneInput}
                 serialNumber={myQueue.yourSerial}
               />
+
+              {myQueue.isCompleted && doctor && (
+                <div className="pt-4 border-t border-emerald-200/70 space-y-3">
+                  {myQueue.hasReview && myQueue.review ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                          Your Verified Review Was Submitted
+                        </div>
+                        <Link
+                          href={`/doctors/${doctor.slug || doctor.id}#reviews`}
+                          className="text-xs font-semibold text-primary hover:underline"
+                        >
+                          View All Reviews →
+                        </Link>
+                      </div>
+                      <StarRatingDisplay
+                        rating={myQueue.review.rating}
+                        reviewCount={1}
+                        showCount={false}
+                        size="sm"
+                      />
+                      <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+                        {myQueue.review.comment}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5">
+                      <div className="mb-3">
+                        <h4 className="font-bold text-sm text-foreground">
+                          How was your consultation with{" "}
+                          {/^dr\.?\s/i.test(doctor.name)
+                            ? doctor.name
+                            : `Dr. ${doctor.name}`}
+                          ?
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Your visit is complete — share a verified rating & review for future patients.
+                        </p>
+                      </div>
+                      <ReviewComposerForm
+                        doctorId={doctor.id}
+                        doctorName={doctor.name}
+                        appointmentId={myQueue.appointmentId}
+                        phone={myQueue.patientPhone || phoneInput}
+                        visitLabel={
+                          myQueue.timeSlot
+                            ? `Slot: ${myQueue.timeSlot}`
+                            : undefined
+                        }
+                        compact
+                        onSubmitted={() => fetchQueue(true)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -419,7 +479,7 @@ function LiveQueueContent() {
                   {doctor.chamberStatus === "BREAK" ? "Chamber on Break" : "Chamber Open & Consulting"}
                 </Badge>
                 <Button asChild size="sm" variant="outline" className="text-xs rounded-xl">
-                  <Link href={`/doctors/${doctor.id}`}>Profile</Link>
+                  <Link href={`/doctors/${doctor.slug || doctor.id}`}>Profile</Link>
                 </Button>
               </div>
             </Card>

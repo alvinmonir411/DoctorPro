@@ -351,6 +351,7 @@ export class AppointmentsService {
       requiresBooking: true,
       doctor: {
         id: doctor.id,
+        slug: doctor.slug,
         name: doctor.name,
         title: doctor.title,
         specialization: doctor.specialization,
@@ -406,6 +407,9 @@ export class AppointmentsService {
         include: {
           doctor: { include: { department: true } },
           patient: true,
+          review: {
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          },
         },
       });
       if (
@@ -430,6 +434,9 @@ export class AppointmentsService {
         include: {
           doctor: { include: { department: true } },
           patient: true,
+          review: {
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          },
         },
       });
     }
@@ -642,6 +649,7 @@ export class AppointmentsService {
       requiresBooking: false,
       doctor: {
         id: doctor.id,
+        slug: doctor.slug,
         name: doctor.name,
         title: doctor.title,
         specialization: doctor.specialization,
@@ -685,6 +693,8 @@ export class AppointmentsService {
             isNext,
             isCompleted,
             isAbsent,
+            hasReview: Boolean(myAppointment.review),
+            review: myAppointment.review || null,
             message: isCurrentlyServing
               ? '🟢 You are currently in consultation with the doctor!'
               : isNext

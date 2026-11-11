@@ -26,12 +26,15 @@ import {
 } from "lucide-react";
 import { doctors as doctorsApi, departments as deptsApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
+import { StarRatingDisplay } from "@/components/public/StarRating";
+import { Star } from "lucide-react";
 
 export default function DoctorsPage() {
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"default" | "rating">("default");
   const [loading, setLoading] = useState(true);
 
   // Full-size image lightbox state
@@ -59,14 +62,23 @@ export default function DoctorsPage() {
     fetchData();
   }, []);
 
-  const filteredDoctors = doctorsList.filter((doc) => {
-    const matchesDept = selectedDept === "all" || doc.departmentId === selectedDept;
-    const matchesSearch =
-      !searchQuery ||
-      doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.specialization.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesDept && matchesSearch;
-  });
+  const filteredDoctors = doctorsList
+    .filter((doc) => {
+      const matchesDept = selectedDept === "all" || doc.departmentId === selectedDept;
+      const matchesSearch =
+        !searchQuery ||
+        doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.specialization.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesDept && matchesSearch;
+    })
+    .sort((a, b) => {
+      if (sortBy !== "rating") return 0;
+      const ratingDiff = (Number(b.averageRating) || 0) - (Number(a.averageRating) || 0);
+      if (ratingDiff !== 0) return ratingDiff;
+      const countDiff = (Number(b.reviewCount) || 0) - (Number(a.reviewCount) || 0);
+      if (countDiff !== 0) return countDiff;
+      return (Number(b.experienceYears) || 0) - (Number(a.experienceYears) || 0);
+    });
 
   return (
     <div className="py-12 md:py-16">
@@ -107,13 +119,39 @@ export default function DoctorsPage() {
 
           {/* Bottom: Department / Category Pills */}
           <div className="space-y-2 pt-1">
-            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground px-1">
               <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                 <Stethoscope className="h-3.5 w-3.5 text-primary" /> Filter by Department:
               </span>
-              <span>
-                {filteredDoctors.length} {filteredDoctors.length === 1 ? "Doctor" : "Doctors"} found
-              </span>
+              <div className="flex items-center gap-3">
+                <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSortBy("default")}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                      sortBy === "default"
+                        ? "bg-white text-foreground shadow-2xs"
+                        : "text-slate-600 hover:text-foreground"
+                    }`}
+                  >
+                    Default
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortBy("rating")}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                      sortBy === "rating"
+                        ? "bg-amber-50 text-amber-800 shadow-2xs"
+                        : "text-slate-600 hover:text-foreground"
+                    }`}
+                  >
+                    <Star className="h-3 w-3 text-amber-400 fill-amber-400" /> Top Rated
+                  </button>
+                </div>
+                <span>
+                  {filteredDoctors.length} {filteredDoctors.length === 1 ? "Doctor" : "Doctors"} found
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -225,6 +263,13 @@ export default function DoctorsPage() {
                       </div>
                       <p className="text-xs font-semibold text-primary mt-0.5">{doc.specialization}</p>
                       <p className="text-xs text-muted-foreground">{doc.title}</p>
+                      <div className="pt-2">
+                        <StarRatingDisplay
+                          rating={doc.averageRating}
+                          reviewCount={doc.reviewCount}
+                          size="xs"
+                        />
+                      </div>
                     </div>
 
                     {doc.experienceYears > 0 && (
