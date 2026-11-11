@@ -45,7 +45,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = prismaErr.message || 'Database error occurred';
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      if (exception.constructor?.name === 'PrismaClientValidationError') {
+        status = HttpStatus.BAD_REQUEST;
+        const lines = exception.message
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean);
+        message = lines[lines.length - 1] || 'Invalid database query payload.';
+      } else {
+        message = exception.message;
+      }
     }
 
     response.status(status).json({

@@ -22,7 +22,7 @@ export class BlogController {
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Request() req: any, @Body() dto: CreateBlogPostDto) {
-    return this.blogService.create(req.user.userId, dto);
+    return this.blogService.create(req.user.sub, dto);
   }
 
   @Public()
