@@ -246,7 +246,7 @@ export default function HomePage() {
                   <img
                     src="https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&auto=format&fit=crop&q=80"
                     alt="Doctor with smiling family and patient"
-                    className="w-full h-[460px] object-cover rounded-[26px]"
+                    className="w-full h-[320px] sm:h-[420px] lg:h-[460px] object-cover object-top rounded-[26px]"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-[26px]" />
                 </div>
@@ -385,68 +385,68 @@ export default function HomePage() {
       ───────────────────────────────────────────────────────────── */}
       <section className="py-16 md:py-20 bg-white">
         <div className="container mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
             {/* Card 1: Light Soft Blue "Experienced Doctors, Exceptional Care" */}
-            <div className="relative rounded-[32px] bg-[#e6f4fe] border border-sky-100 p-8 sm:p-10 flex flex-col justify-between overflow-hidden shadow-xs">
-              <div className="space-y-3 max-w-sm z-10">
-                <h3 className="text-2xl sm:text-3xl font-black text-[#0a1e3b] leading-tight">
+            <div className="rounded-[32px] bg-[#e6f4fe] border border-sky-100 p-6 sm:p-8 xl:p-10 shadow-xs flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center justify-between gap-6 overflow-hidden">
+              <div className="w-full sm:flex-1 lg:w-full xl:flex-1 space-y-3 min-w-0">
+                <h3 className="text-2xl sm:text-[28px] font-black text-[#0a1e3b] leading-tight">
                   Experienced Doctors, Exceptional Care
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-md">
                   Our team of specialists is committed to your well-being.
                 </p>
-                <div className="pt-4">
+                <div className="pt-3">
                   <Button
                     asChild
-                    className="h-11 px-6 rounded-full bg-[#0a1e3b] hover:bg-[#07162c] text-white font-semibold text-xs"
+                    className="h-11 px-6 rounded-full bg-[#0a1e3b] hover:bg-[#07162c] text-white font-semibold text-xs whitespace-nowrap"
                   >
-                    <Link href="/doctors" className="flex items-center gap-1.5">
+                    <Link href="/doctors" className="inline-flex items-center gap-1.5">
                       Meet Our Doctors <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
                 </div>
               </div>
 
-              <div className="mt-6 md:mt-0 md:absolute md:right-4 md:bottom-0 md:w-56 lg:w-64">
+              <div className="w-full sm:w-56 md:w-64 lg:w-full xl:w-48 shrink-0 overflow-hidden rounded-2xl shadow-sm bg-white/60 ring-1 ring-white/80">
                 <img
                   src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=600&auto=format&fit=crop&q=80"
                   alt="Doctor with Stethoscope"
-                  className="w-full object-contain max-h-64 mx-auto rounded-2xl md:rounded-none"
+                  className="w-full h-60 sm:h-64 lg:h-60 xl:h-64 object-cover object-top"
                 />
               </div>
             </div>
 
             {/* Card 2: Deep Navy "Emergency Care When You Need It Most" */}
-            <div className="relative rounded-[32px] bg-[#0a1e3b] text-white p-8 sm:p-10 flex flex-col justify-between overflow-hidden shadow-md">
-              <div className="space-y-3 max-w-sm z-10">
+            <div className="rounded-[32px] bg-[#0a1e3b] text-white p-6 sm:p-8 xl:p-10 shadow-md flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center justify-between gap-6 overflow-hidden">
+              <div className="w-full sm:flex-1 lg:w-full xl:flex-1 space-y-3 min-w-0">
                 <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-sky-400 uppercase tracking-wider">
                   <Clock className="h-3.5 w-3.5" /> 24/7 Available
                 </div>
-                <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight">
+                <h3 className="text-2xl sm:text-[28px] font-black text-white leading-tight">
                   Emergency Care When You Need It Most
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-md">
                   Our emergency team is always ready to provide fast, reliable, and life-saving care.
                 </p>
-                <div className="pt-4">
+                <div className="pt-3">
                   <Button
                     asChild
-                    className="h-11 px-6 rounded-full bg-white hover:bg-slate-100 text-[#0a1e3b] font-semibold text-xs shadow-sm"
+                    className="h-11 px-6 rounded-full bg-white hover:bg-slate-100 text-[#0a1e3b] font-semibold text-xs shadow-sm whitespace-nowrap"
                   >
-                    <Link href="/contact" className="flex items-center gap-1.5">
+                    <Link href="/contact" className="inline-flex items-center gap-1.5">
                       View Emergency Services <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
                 </div>
               </div>
 
-              <div className="mt-6 md:mt-0 md:absolute md:right-0 md:bottom-0 md:w-60 lg:w-72 h-48 md:h-full overflow-hidden opacity-90">
+              <div className="relative w-full sm:w-56 md:w-64 lg:w-full xl:w-48 shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/15 shadow-lg">
                 <img
                   src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=600&auto=format&fit=crop&q=80"
                   alt="Illuminated Emergency Ward"
-                  className="w-full h-full object-cover rounded-2xl md:rounded-none"
+                  className="w-full h-60 sm:h-64 lg:h-60 xl:h-64 object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#0a1e3b] via-[#0a1e3b]/60 to-transparent hidden md:block" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a1e3b]/40 via-transparent to-transparent pointer-events-none" />
               </div>
             </div>
           </div>
@@ -590,38 +590,37 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right: Book Your Appointment Today Card with Reception background */}
-            <div className="lg:col-span-6 rounded-[32px] relative overflow-hidden bg-gradient-to-r from-sky-50 via-sky-100/50 to-white border border-sky-100 p-8 sm:p-10 flex flex-col justify-between shadow-xs">
-              <div className="space-y-4 max-w-sm z-10">
+            {/* Right: Book Your Appointment Today Card with Framed Reception Photo */}
+            <div className="lg:col-span-6 rounded-[32px] bg-gradient-to-br from-sky-50 via-sky-100/50 to-white border border-sky-100 p-6 sm:p-8 xl:p-10 flex flex-col sm:flex-row lg:flex-col xl:flex-row items-center justify-between gap-6 shadow-xs overflow-hidden">
+              <div className="w-full sm:flex-1 lg:w-full xl:flex-1 space-y-4 min-w-0">
                 <p className="text-[11px] font-bold tracking-[0.2em] uppercase text-sky-600">
                   YOUR HEALTH MATTERS
                 </p>
-                <h3 className="text-2xl sm:text-3xl font-black text-[#0a1e3b] leading-tight">
+                <h3 className="text-2xl sm:text-[28px] font-black text-[#0a1e3b] leading-tight">
                   Book Your Appointment Today
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-md">
                   Take the first step towards a healthier tomorrow with our certified doctors.
                 </p>
                 <div className="pt-2">
                   <Button
                     asChild
-                    className="h-11 px-7 rounded-full bg-[#0a1e3b] hover:bg-[#07162c] text-white font-semibold text-xs shadow-md"
+                    className="h-11 px-7 rounded-full bg-[#0a1e3b] hover:bg-[#07162c] text-white font-semibold text-xs shadow-md whitespace-nowrap"
                   >
-                    <Link href="/appointment" className="flex items-center gap-2">
+                    <Link href="/appointment" className="inline-flex items-center gap-2">
                       Book Appointment <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
                 </div>
               </div>
 
-              {/* Reception Photo positioned right side */}
-              <div className="mt-6 lg:mt-0 lg:absolute lg:right-0 lg:bottom-0 lg:w-72 lg:h-full overflow-hidden opacity-90 pointer-events-none">
+              {/* Reception Photo */}
+              <div className="w-full sm:w-56 md:w-64 lg:w-full xl:w-48 shrink-0 overflow-hidden rounded-2xl shadow-md ring-1 ring-sky-100">
                 <img
                   src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=600&auto=format&fit=crop&q=80"
                   alt="Modern Clinic Reception Desk"
-                  className="w-full h-full object-cover rounded-2xl lg:rounded-none"
+                  className="w-full h-52 sm:h-60 lg:h-48 xl:h-64 object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-sky-50 via-sky-50/60 to-transparent hidden lg:block" />
               </div>
             </div>
           </div>

@@ -175,6 +175,11 @@ export function PublicNavbar() {
                   Book Appointment <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </Link>
               </Button>
+              <Button asChild variant="outline" className="w-full h-11 rounded-full text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                <Link href="/live-queue" onClick={() => setMobileMenuOpen(false)}>
+                  Live Serial Tracker
+                </Link>
+              </Button>
               <Button asChild variant="outline" className="w-full h-11 rounded-full text-xs">
                 <Link href="/admin/login" onClick={() => setMobileMenuOpen(false)}>
                   Staff Portal
