@@ -30,6 +30,8 @@ import {
   Calendar,
 } from "lucide-react";
 import { doctors as doctorsApi, services as servicesApi, blog as blogApi } from "@/lib/api";
+import { Doctor } from "@/types";
+import { PremiumHeroSection } from "@/components/public/PremiumHeroSection";
 import { TopRatedDoctorsSlider } from "@/components/public/TopRatedDoctorsSlider";
 
 // ─── 8 Departments with pastel styling from reference design ───
@@ -122,17 +124,29 @@ const TESTIMONIALS = [
 export default function HomePage() {
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [blogPosts, setBlogPosts] = useState<any[]>([]);
+  const [topDoctors, setTopDoctors] = useState<Doctor[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadBlogs() {
+    async function loadHomeData() {
       try {
-        const res = await blogApi.getAll("publishedOnly=true");
-        if (Array.isArray(res)) setBlogPosts(res.slice(0, 3));
+        const [docsRes, blogsRes] = await Promise.allSettled([
+          doctorsApi.getAll("activeOnly=true&topRated=true"),
+          blogApi.getAll("publishedOnly=true"),
+        ]);
+        if (docsRes.status === "fulfilled" && Array.isArray(docsRes.value)) {
+          setTopDoctors(docsRes.value);
+        }
+        if (blogsRes.status === "fulfilled" && Array.isArray(blogsRes.value)) {
+          setBlogPosts(blogsRes.value.slice(0, 3));
+        }
       } catch (err) {
         console.error(err);
+      } finally {
+        setDoctorsLoading(false);
       }
     }
-    loadBlogs();
+    loadHomeData();
   }, []);
 
   const nextTestimonial = () => {
@@ -147,128 +161,9 @@ export default function HomePage() {
   return (
     <div className="flex flex-col bg-white overflow-hidden">
       {/* ─────────────────────────────────────────────────────────────
-          1. HERO SECTION (Exact Reference Design Matching)
+          1. HERO SECTION (Premium Editorial Clinical Showcase)
       ───────────────────────────────────────────────────────────── */}
-      <section className="relative pt-10 pb-16 lg:pt-16 lg:pb-24 bg-gradient-to-b from-sky-50/40 via-white to-white">
-        <div className="container mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            {/* Left Content */}
-            <div className="lg:col-span-7 space-y-6">
-              {/* Badge */}
-              <p className="text-[12px] font-bold tracking-[0.2em] uppercase text-slate-500">
-                YOUR HEALTH, OUR PRIORITY
-              </p>
-
-              {/* Main Headline */}
-              <h1 className="text-4xl sm:text-5xl lg:text-[64px] font-black tracking-tight text-[#0a1e3b] leading-[1.08]">
-                Expert Care for a{" "}
-                <span className="text-sky-600 inline-block relative">
-                  Healthier
-                </span>
-                <br />
-                Tomorrow
-              </h1>
-
-              {/* Description */}
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl">
-                Compassionate care, advanced technology, and a dedicated team — all for a healthier, happier you.
-              </p>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-wrap items-center gap-4 pt-2">
-                <Button
-                  asChild
-                  className="h-12 px-8 rounded-full bg-[#0a1e3b] hover:bg-[#07162c] text-white font-semibold text-sm shadow-md shadow-slate-900/10 transition-all hover:shadow-lg hover:-translate-y-0.5"
-                >
-                  <Link href="/appointment" className="flex items-center gap-2">
-                    Book an Appointment <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-
-                <Button
-                  asChild
-                  variant="outline"
-                  className="h-12 px-8 rounded-full bg-white hover:bg-slate-50 text-[#0a1e3b] border-slate-200 font-semibold text-sm transition-all"
-                >
-                  <Link href="/doctors">
-                    Find a Doctor
-                  </Link>
-                </Button>
-              </div>
-
-              {/* Trust Badges Bar */}
-              <div className="pt-8 border-t border-slate-100 flex flex-wrap items-center gap-6 sm:gap-10 text-xs text-slate-600 font-medium">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center">
-                    <Users className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Trusted by</span>
-                    <strong className="text-slate-800 text-xs">50,000+ Patients</strong>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center">
-                    <Clock className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">24/7 Availability</span>
-                    <strong className="text-slate-800 text-xs">Emergency Care</strong>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">Certified</span>
-                    <strong className="text-slate-800 text-xs">Board Certified</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Hero Image Card with Overlay elements */}
-            <div className="lg:col-span-5 relative">
-              <div className="relative mx-auto max-w-lg lg:max-w-none">
-                {/* Decorative handwritten text */}
-                <div className="absolute -top-6 right-6 z-20 hidden sm:block rotate-3">
-                  <span className="font-serif italic text-sky-700/80 text-sm font-semibold tracking-wide">
-                    Healthier People
-                    <br />
-                    Brighter Tomorrows <span className="not-italic">:)</span>
-                  </span>
-                </div>
-
-                {/* Main Hero Doctor Image */}
-                <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-tr from-sky-100 via-sky-50 to-white p-2 shadow-2xl shadow-sky-900/10 border border-sky-100/60">
-                  <img
-                    src="https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&auto=format&fit=crop&q=80"
-                    alt="Doctor with smiling family and patient"
-                    className="w-full h-[320px] sm:h-[420px] lg:h-[460px] object-cover object-top rounded-[26px]"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-[26px]" />
-                </div>
-
-                {/* Floating Badge Card: World-Class Care */}
-                <div className="absolute -bottom-6 left-6 right-6 sm:left-auto sm:right-6 sm:w-80 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-slate-100 flex items-center gap-3.5 z-20 animate-in fade-in slide-in-from-bottom-3">
-                  <div className="h-11 w-11 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
-                    <Heart className="h-5 w-5 fill-sky-500 text-sky-500" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-xs text-[#0a1e3b]">World-Class Care</h4>
-                    <p className="text-[11px] text-slate-500 leading-tight mt-0.5">
-                      Modern facilities, experienced specialists. A healthier you.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PremiumHeroSection doctors={topDoctors} />
 
       {/* ─────────────────────────────────────────────────────────────
           2. OUR DEPARTMENTS SECTION (8 Soft Pastel Cards)
@@ -315,7 +210,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      <TopRatedDoctorsSlider />
+      <TopRatedDoctorsSlider
+        initialDoctors={topDoctors}
+        initialLoading={doctorsLoading}
+      />
 
       {/* ─────────────────────────────────────────────────────────────
           3. "A PRACTICE BUILT AROUND YOU" OVERVIEW SECTION

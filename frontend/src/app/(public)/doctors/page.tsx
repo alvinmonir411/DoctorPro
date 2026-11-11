@@ -41,6 +41,14 @@ export default function DoctorsPage() {
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string; title?: string } | null>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const q = sp.get("search");
+      const sort = sp.get("sort");
+      if (q) setSearchQuery(q);
+      if (sort === "rating") setSortBy("rating");
+    }
+
     async function fetchData() {
       try {
         const [docs, depts] = await Promise.allSettled([
@@ -65,10 +73,13 @@ export default function DoctorsPage() {
   const filteredDoctors = doctorsList
     .filter((doc) => {
       const matchesDept = selectedDept === "all" || doc.departmentId === selectedDept;
+      const q = searchQuery.toLowerCase();
       const matchesSearch =
-        !searchQuery ||
-        doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.specialization.toLowerCase().includes(searchQuery.toLowerCase());
+        !q ||
+        doc.name.toLowerCase().includes(q) ||
+        doc.specialization?.toLowerCase().includes(q) ||
+        doc.department?.name?.toLowerCase().includes(q) ||
+        doc.title?.toLowerCase().includes(q);
       return matchesDept && matchesSearch;
     })
     .sort((a, b) => {

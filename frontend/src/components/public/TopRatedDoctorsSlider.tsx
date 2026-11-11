@@ -20,12 +20,29 @@ import { getMediaUrl } from "@/lib/utils";
 import { Doctor } from "@/types";
 import { StarRatingDisplay } from "./StarRating";
 
-export function TopRatedDoctorsSlider() {
-  const [doctorsList, setDoctorsList] = useState<Doctor[]>([]);
-  const [loading, setLoading] = useState(true);
+interface TopRatedDoctorsSliderProps {
+  initialDoctors?: Doctor[];
+  initialLoading?: boolean;
+}
+
+export function TopRatedDoctorsSlider({
+  initialDoctors,
+  initialLoading,
+}: TopRatedDoctorsSliderProps) {
+  const [doctorsList, setDoctorsList] = useState<Doctor[]>(initialDoctors || []);
+  const [loading, setLoading] = useState(
+    initialDoctors !== undefined ? Boolean(initialLoading) : true,
+  );
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(3);
   const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (initialDoctors !== undefined) {
+      setDoctorsList(initialDoctors.slice(0, 12));
+      setLoading(Boolean(initialLoading));
+    }
+  }, [initialDoctors, initialLoading]);
 
   useEffect(() => {
     const updateVisibleCount = () => {
@@ -44,6 +61,7 @@ export function TopRatedDoctorsSlider() {
   }, []);
 
   useEffect(() => {
+    if (initialDoctors !== undefined) return;
     let cancelled = false;
     async function loadTopRated() {
       try {
@@ -61,7 +79,7 @@ export function TopRatedDoctorsSlider() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialDoctors]);
 
   const maxIndex = Math.max(0, doctorsList.length - visibleCount);
 
