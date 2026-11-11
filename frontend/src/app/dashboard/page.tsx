@@ -144,7 +144,8 @@ export default function AdminDashboardPage() {
     if (action === "RESET") {
       const ok = await confirmActionToast({
         title: "Reset Today's Queue to #0?",
-        description: "Sets Current Serving Token back to #0 and restores today's queued slots so you can start again from 0.",
+        description:
+          "Sets Current Serving Token back to #0 while keeping already COMPLETED patients marked as seen. Only remaining unseen patients stay in the queue.",
         confirmLabel: "Reset to #0",
       });
       if (!ok) return;
@@ -408,7 +409,12 @@ export default function AdminDashboardPage() {
               const currentServing = doctorProfile?.currentServingSerial || 0;
               const maxSerialToday = manageQueue?.stats?.maxSerialToday || 0;
               const totalBookedToday = manageQueue?.stats?.totalPatientsToday || 0;
-              const canCallNext = maxSerialToday > 0 && currentServing < maxSerialToday;
+              const completedCount = manageQueue?.stats?.completedCount || 0;
+              const remainingCount =
+                manageQueue?.stats?.remainingCount ?? Math.max(0, totalBookedToday - completedCount);
+              const nextPendingSerial: number | null =
+                manageQueue?.stats?.nextPendingSerial ?? null;
+              const canCallNext = Boolean(nextPendingSerial);
               const activeCurrentItem = Array.isArray(manageQueue?.queueList)
                 ? manageQueue.queueList.find((q: any) => q.serialNumber === currentServing)
                 : null;
@@ -432,8 +438,10 @@ export default function AdminDashboardPage() {
                       {doctorProfile?.chamberStatus === "BREAK"
                         ? "Clinic Paused / Break"
                         : currentServing === 0
-                        ? `Ready (${totalBookedToday} booked today)`
-                        : "Inside Consultation Room"}
+                        ? completedCount > 0
+                          ? `Ready • ${completedCount} seen, ${remainingCount} remaining`
+                          : `Ready (${totalBookedToday} booked today)`
+                        : `Inside Consultation Room • ${remainingCount} remaining`}
                     </span>
                   </div>
 
@@ -443,18 +451,18 @@ export default function AdminDashboardPage() {
                       Next In Line
                     </span>
                     <p className="text-3xl sm:text-4xl font-black text-primary">
-                      {maxSerialToday === 0
+                      {totalBookedToday === 0
                         ? "—"
-                        : currentServing >= maxSerialToday
-                        ? "Done"
-                        : `#${currentServing + 1}`}
+                        : nextPendingSerial
+                        ? `#${nextPendingSerial}`
+                        : "Done"}
                     </p>
                     <span className="text-[11px] text-muted-foreground block">
-                      {maxSerialToday === 0
+                      {totalBookedToday === 0
                         ? "No booked appointments today"
-                        : currentServing >= maxSerialToday
-                        ? `Reached last booking (#${maxSerialToday})`
-                        : `Waiting outside (${totalBookedToday} total today)`}
+                        : nextPendingSerial
+                        ? `Waiting outside (${remainingCount} remaining of ${totalBookedToday})`
+                        : `All ${totalBookedToday} patient(s) completed/called`}
                     </span>
                   </div>
 
@@ -466,11 +474,11 @@ export default function AdminDashboardPage() {
                       className="h-10 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold rounded-xl text-xs shadow-xs"
                     >
                       <Volume2 className="mr-1.5 h-4 w-4 shrink-0" />
-                      {maxSerialToday === 0
+                      {totalBookedToday === 0
                         ? "No Bookings Today (0)"
-                        : currentServing >= maxSerialToday
-                        ? `All ${maxSerialToday} Booked Called`
-                        : `Call Next Patient (#${currentServing + 1} of ${maxSerialToday})`}
+                        : !nextPendingSerial
+                        ? `All ${totalBookedToday} Seen / Called`
+                        : `Call Next Patient (#${nextPendingSerial} • ${remainingCount} left)`}
                     </Button>
                     {canCompleteCurrent && (
                       <Button
@@ -508,9 +516,9 @@ export default function AdminDashboardPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleAdvanceQueue("RESET")}
-                        disabled={advancingQueue || (currentServing === 0 && totalBookedToday === 0)}
+                        disabled={advancingQueue || currentServing === 0}
                         className="text-xs rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 font-semibold"
-                        title="Reset current serving serial back to #0"
+                        title="Reset current serving serial back to #0 (keeps completed patients)"
                       >
                         <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset
                       </Button>

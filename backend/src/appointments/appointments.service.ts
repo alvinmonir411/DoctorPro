@@ -518,14 +518,40 @@ export class AppointmentsService {
       (max, a, idx) => Math.max(max, a.serialNumber || idx + 1),
       0,
     );
-    const completedCount = appointmentsToday.filter(
-      (a) => a.status === 'COMPLETED' || (a.serialNumber && a.serialNumber < currentServingSerial),
+
+    const normalizedAppts = appointmentsToday.map((a, idx) => ({
+      appt: a,
+      serial: a.serialNumber || idx + 1,
+    }));
+    const remainingAppts = normalizedAppts.filter(
+      (x) => x.appt.status !== 'COMPLETED',
+    );
+    const completedCount = normalizedAppts.length - remainingAppts.length;
+    const remainingCount = remainingAppts.length;
+
+    // Find who is currently serving (never treat a COMPLETED row as actively consulting)
+    const currentlyServingEntry =
+      currentServingSerial > 0
+        ? remainingAppts.find(
+            (x) => x.serial === currentServingSerial || x.appt.status === 'SERVING',
+          )
+        : null;
+    const currentlyServingAppointment = currentlyServingEntry?.appt || null;
+
+    const isEntryServing = (serial: number, status: string) =>
+      currentServingSerial > 0 &&
+      serial === currentServingSerial &&
+      chamberStatus === 'ACTIVE' &&
+      status !== 'COMPLETED';
+
+    const waitingCount = remainingAppts.filter(
+      (x) => !isEntryServing(x.serial, x.appt.status),
     ).length;
 
-    // Find who is currently serving
-    const currentlyServingAppointment = appointmentsToday.find(
-      (a) => a.serialNumber === currentServingSerial || a.status === 'SERVING',
+    const nextPendingEntry = remainingAppts.find(
+      (x) => x.appt.status !== 'SERVING' && x.serial > currentServingSerial,
     );
+    const nextPendingSerial = nextPendingEntry?.serial || null;
 
     // Calculate details for myAppointment if provided
     let mySerial = myAppointment?.serialNumber || null;
@@ -542,31 +568,44 @@ export class AppointmentsService {
         mySerial = idx >= 0 ? idx + 1 : 1;
       }
 
-      if (currentServingSerial > 0) {
-        if (mySerial === currentServingSerial && chamberStatus === 'ACTIVE') {
-          isCurrentlyServing = true;
-          patientsAhead = 0;
-          estimatedWaitMinutes = 0;
-        } else if (mySerial < currentServingSerial || myAppointment.status === 'COMPLETED') {
-          isCompleted = true;
-          patientsAhead = 0;
-          estimatedWaitMinutes = 0;
-        } else {
-          patientsAhead = Math.max(0, mySerial - currentServingSerial);
-          estimatedWaitMinutes = patientsAhead * slotDuration;
-          if (patientsAhead === 1) isNext = true;
+      if (myAppointment.status === 'COMPLETED') {
+        isCompleted = true;
+        patientsAhead = 0;
+        estimatedWaitMinutes = 0;
+      } else if (
+        myAppointment.status === 'SERVING' ||
+        (currentServingSerial > 0 &&
+          mySerial === currentServingSerial &&
+          chamberStatus === 'ACTIVE')
+      ) {
+        isCurrentlyServing = true;
+        patientsAhead = 0;
+        estimatedWaitMinutes = 0;
+      } else if (currentServingSerial > 0) {
+        // Count unseen/active patients ahead of me starting from the current serving serial
+        patientsAhead = remainingAppts.filter(
+          (x) =>
+            x.serial < mySerial &&
+            (x.appt.status === 'SERVING' || x.serial >= currentServingSerial),
+        ).length;
+        estimatedWaitMinutes = patientsAhead * slotDuration;
+        if (patientsAhead === 1 || mySerial === nextPendingSerial) {
+          isNext = true;
         }
       } else {
-        // Doctor hasn't started yet
-        patientsAhead = mySerial;
-        estimatedWaitMinutes = mySerial * slotDuration;
-        if (mySerial === 1) isNext = true;
+        // Queue at #0 (not started yet or reset while preserving COMPLETED appointments):
+        // Count ONLY remaining unseen patients before me
+        const unseenBeforeMe = remainingAppts.filter(
+          (x) => x.serial < mySerial,
+        ).length;
+        patientsAhead = unseenBeforeMe;
+        estimatedWaitMinutes = (unseenBeforeMe + 1) * slotDuration;
+        if (unseenBeforeMe === 0) isNext = true;
       }
     }
 
     // Mask patient names for public privacy (e.g. "Md. Rahim" -> "M***m", Serial #1)
-    const queueList = appointmentsToday.map((a, idx) => {
-      const serial = a.serialNumber || idx + 1;
+    const queueList = normalizedAppts.map(({ appt: a, serial }) => {
       const rawName = a.patient?.name || 'Patient';
       const maskedName =
         rawName.length > 2
@@ -579,8 +618,8 @@ export class AppointmentsService {
         timeSlot: a.timeSlot,
         status: a.status,
         maskedName,
-        isServing: serial === currentServingSerial && chamberStatus === 'ACTIVE',
-        isCompleted: a.status === 'COMPLETED' || (currentServingSerial > 0 && serial < currentServingSerial),
+        isServing: isEntryServing(serial, a.status),
+        isCompleted: a.status === 'COMPLETED',
       };
     });
 
@@ -613,7 +652,9 @@ export class AppointmentsService {
         totalPatientsToday,
         maxSerialToday,
         completedCount,
-        waitingCount: Math.max(0, totalPatientsToday - completedCount),
+        remainingCount,
+        waitingCount,
+        nextPendingSerial,
       },
       myQueueStatus: myAppointment
         ? {
@@ -673,9 +714,13 @@ export class AppointmentsService {
       orderBy: [{ serialNumber: 'asc' }, { timeSlot: 'asc' }],
       select: { id: true, serialNumber: true, status: true },
     });
-    const totalBookedToday = todaysAppointments.length;
-    const maxSerialToday = todaysAppointments.reduce(
-      (max, a, idx) => Math.max(max, a.serialNumber || idx + 1),
+    const normalizedToday = todaysAppointments.map((a, idx) => ({
+      ...a,
+      effectiveSerial: a.serialNumber || idx + 1,
+    }));
+    const totalBookedToday = normalizedToday.length;
+    const maxSerialToday = normalizedToday.reduce(
+      (max, a) => Math.max(max, a.effectiveSerial),
       0,
     );
 
@@ -683,41 +728,45 @@ export class AppointmentsService {
     let nextStatus = doctor.chamberStatus || 'ACTIVE';
 
     if (action === 'NEXT') {
-      if (maxSerialToday === 0) {
+      if (totalBookedToday === 0 || maxSerialToday === 0) {
         throw new BadRequestException(
           'No appointments booked for today yet. You can only call next patient when appointments are booked.',
         );
       }
-      if (nextSerial >= maxSerialToday) {
+
+      // Skip already-COMPLETED appointments and call the next unseen patient after current serial
+      const nextCandidate = normalizedToday.find(
+        (a) =>
+          a.status !== 'COMPLETED' &&
+          a.status !== 'SERVING' &&
+          a.effectiveSerial > nextSerial,
+      );
+
+      if (!nextCandidate) {
         throw new BadRequestException(
-          `Cannot advance beyond Serial #${maxSerialToday}. Only ${totalBookedToday} appointment(s) booked today.`,
+          'All remaining booked patients for today have already been called or completed.',
         );
       }
 
-      // Mark current serving appointment as COMPLETED
+      // Mark current serving appointment (if any and not completed) as COMPLETED
       if (nextSerial > 0) {
         await this.prisma.appointment.updateMany({
           where: {
             doctorId: effectiveDoctorId,
             date: { gte: startOfDay, lte: endOfDay },
-            serialNumber: nextSerial,
-            status: { not: 'CANCELLED' },
+            OR: [{ serialNumber: nextSerial }, { status: 'SERVING' }],
+            status: { notIn: ['CANCELLED', 'COMPLETED'] },
           },
           data: { status: 'COMPLETED' },
         });
       }
 
-      nextSerial = nextSerial + 1;
+      nextSerial = nextCandidate.effectiveSerial;
       nextStatus = 'ACTIVE';
 
-      // Mark new serial appointment as SERVING
-      await this.prisma.appointment.updateMany({
-        where: {
-          doctorId: effectiveDoctorId,
-          date: { gte: startOfDay, lte: endOfDay },
-          serialNumber: nextSerial,
-          status: { not: 'CANCELLED' },
-        },
+      // Mark selected next unseen appointment as SERVING
+      await this.prisma.appointment.update({
+        where: { id: nextCandidate.id },
         data: { status: 'SERVING' },
       });
     } else if (action === 'COMPLETE_CURRENT') {
@@ -726,45 +775,49 @@ export class AppointmentsService {
           where: {
             doctorId: effectiveDoctorId,
             date: { gte: startOfDay, lte: endOfDay },
-            serialNumber: nextSerial,
+            OR: [{ serialNumber: nextSerial }, { status: 'SERVING' }],
             status: { not: 'CANCELLED' },
           },
           data: { status: 'COMPLETED' },
         });
       }
     } else if (action === 'PREV') {
-      if (nextSerial > 0) {
+      const currentBeforeStep = nextSerial;
+      if (currentBeforeStep > 0) {
         await this.prisma.appointment.updateMany({
           where: {
             doctorId: effectiveDoctorId,
             date: { gte: startOfDay, lte: endOfDay },
-            serialNumber: nextSerial,
+            OR: [{ serialNumber: currentBeforeStep }, { status: 'SERVING' }],
             status: 'SERVING',
           },
           data: { status: 'CONFIRMED' },
         });
       }
-      const stepped = Math.max(0, nextSerial - 1);
-      nextSerial = maxSerialToday > 0 ? Math.min(stepped, maxSerialToday) : 0;
-      if (nextSerial > 0) {
-        await this.prisma.appointment.updateMany({
-          where: {
-            doctorId: effectiveDoctorId,
-            date: { gte: startOfDay, lte: endOfDay },
-            serialNumber: nextSerial,
-            status: { not: 'CANCELLED' },
-          },
+
+      // Step back only to an unseen (non-COMPLETED) earlier appointment, or #0 if earlier ones were already seen
+      const prevUnseen = [...normalizedToday]
+        .reverse()
+        .find(
+          (a) => a.status !== 'COMPLETED' && a.effectiveSerial < currentBeforeStep,
+        );
+
+      nextSerial = prevUnseen ? prevUnseen.effectiveSerial : 0;
+      if (prevUnseen) {
+        await this.prisma.appointment.update({
+          where: { id: prevUnseen.id },
           data: { status: 'SERVING' },
         });
       }
     } else if (action === 'RESET') {
       nextSerial = 0;
       nextStatus = 'ACTIVE';
+      // IMPORTANT: Never revert already COMPLETED appointments — only unset currently SERVING (not yet completed)
       await this.prisma.appointment.updateMany({
         where: {
           doctorId: effectiveDoctorId,
           date: { gte: startOfDay, lte: endOfDay },
-          status: { in: ['SERVING', 'COMPLETED'] },
+          status: 'SERVING',
         },
         data: { status: 'CONFIRMED' },
       });

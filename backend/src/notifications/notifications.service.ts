@@ -249,6 +249,7 @@ export class NotificationsService implements OnModuleInit {
         status: { in: ['PENDING', 'CONFIRMED', 'SERVING'] },
       },
       include: { patient: true },
+      orderBy: [{ serialNumber: 'asc' }, { timeSlot: 'asc' }],
     });
 
     const apptById = new Map<string, any>();
@@ -274,9 +275,14 @@ export class NotificationsService implements OnModuleInit {
       doctor.slotDuration && doctor.slotDuration > 0 ? doctor.slotDuration : 15;
 
     for (const sub of subs) {
-      const matchedAppt =
-        (sub.appointmentId ? apptById.get(sub.appointmentId) : null) ||
-        (sub.patientPhone ? apptByPhone.get(sub.patientPhone.trim()) : null);
+      const matchedAppt = sub.appointmentId
+        ? apptById.get(sub.appointmentId) || null
+        : sub.patientPhone
+        ? apptByPhone.get(sub.patientPhone.trim()) || null
+        : null;
+
+      // Never send queue-turn reminders for completed/cancelled/inactive appointments
+      if (sub.appointmentId && !matchedAppt) continue;
 
       const targetSerial = matchedAppt?.serialNumber ?? sub.serialNumber;
       if (!targetSerial || targetSerial <= 0) continue;
@@ -285,7 +291,15 @@ export class NotificationsService implements OnModuleInit {
         continue;
       }
 
-      const ahead = targetSerial - currentServingSerial;
+      const ahead = matchedAppt
+        ? appointmentsToday.filter((a) => {
+            const s = a.serialNumber || 0;
+            if (s <= 0 || s >= targetSerial) return false;
+            return currentServingSerial > 0
+              ? a.status === 'SERVING' || s >= currentServingSerial
+              : true;
+          }).length
+        : Math.max(0, targetSerial - currentServingSerial);
       if (ahead < 0 || ahead > 3) continue;
 
       const query = new URLSearchParams({ doctorId: doctor.id });
