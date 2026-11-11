@@ -14,6 +14,7 @@ import { BlogService } from './blog.service';
 import { CreateBlogPostDto, UpdateBlogPostDto } from './dto/blog.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { assertAdminRole } from '../common/utils/doctor-scope';
 
 @Controller('blog')
 export class BlogController {
@@ -22,6 +23,7 @@ export class BlogController {
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Request() req: any, @Body() dto: CreateBlogPostDto) {
+    assertAdminRole(req.user);
     return this.blogService.create(req.user.sub, dto);
   }
 
@@ -47,13 +49,15 @@ export class BlogController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() dto: UpdateBlogPostDto) {
+  update(@Param('id') id: string, @Body() dto: UpdateBlogPostDto, @Request() req: any) {
+    assertAdminRole(req.user);
     return this.blogService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string, @Request() req: any) {
+    assertAdminRole(req.user);
     return this.blogService.remove(id);
   }
 }

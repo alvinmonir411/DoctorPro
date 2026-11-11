@@ -7,14 +7,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Search, Phone, Mail, MapPin, Calendar, Trash2 } from "lucide-react";
 import { patients as patientsApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export default function AdminPatientsPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const userRole = (user?.role || "").toUpperCase();
+  const isDoctorScoped = userRole === "DOCTOR" || userRole === "DOCTOR_ASSISTANT";
+
   const [patientsList, setPatientsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   const loadPatients = async () => {
+    if (!user) return;
+    setLoading(true);
     try {
       const res = await patientsApi.getAll();
       if (Array.isArray(res)) {
@@ -31,8 +38,10 @@ export default function AdminPatientsPage() {
   };
 
   useEffect(() => {
-    loadPatients();
-  }, []);
+    if (!authLoading && user) {
+      loadPatients();
+    }
+  }, [authLoading, userRole, user?.doctorId]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this patient record?")) return;
@@ -60,8 +69,18 @@ export default function AdminPatientsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Patient Records</h1>
-          <p className="text-xs text-muted-foreground">List of patients with contact details and consultation histories</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {userRole === "DOCTOR"
+              ? "My Patients"
+              : userRole === "DOCTOR_ASSISTANT"
+              ? "Doctor's Patients"
+              : "Patient Records"}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {isDoctorScoped
+              ? "Patients who have booked consultation appointments with you"
+              : "List of patients with contact details and consultation histories"}
+          </p>
         </div>
       </div>
 
@@ -91,7 +110,7 @@ export default function AdminPatientsPage() {
                     <th className="p-3">Email</th>
                     <th className="p-3">Total Appointments</th>
                     <th className="p-3">Registered Since</th>
-                    <th className="p-3 text-right">Actions</th>
+                    {!isDoctorScoped && <th className="p-3 text-right">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -108,16 +127,18 @@ export default function AdminPatientsPage() {
                       <td className="p-3 text-muted-foreground">
                         {new Date(pt.createdAt).toISOString().split("T")[0]}
                       </td>
-                      <td className="p-3 text-right">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-rose-500 hover:bg-rose-50"
-                          onClick={() => handleDelete(pt.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </td>
+                      {!isDoctorScoped && (
+                        <td className="p-3 text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-rose-500 hover:bg-rose-50"
+                            onClick={() => handleDelete(pt.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -10,6 +10,30 @@ export interface ScopedRequestUser {
 }
 
 /**
+ * Throws 403 Forbidden if the caller is not a clinic ADMIN.
+ */
+export function assertAdminRole(
+  user?: ScopedRequestUser,
+  message = 'Only clinic administrators can perform this action.',
+): void {
+  if ((user?.role || '').toUpperCase() !== 'ADMIN') {
+    throw new ForbiddenException(message);
+  }
+}
+
+/**
+ * Throws 403 Forbidden if the caller is a DOCTOR_ASSISTANT.
+ */
+export function assertNotAssistantRole(
+  user?: ScopedRequestUser,
+  message = 'Assistants are not permitted to perform this action.',
+): void {
+  if ((user?.role || '').toUpperCase() === 'DOCTOR_ASSISTANT') {
+    throw new ForbiddenException(message);
+  }
+}
+
+/**
  * Resolves the enforced doctorId for DOCTOR / DOCTOR_ASSISTANT accounts.
  * Returns undefined for ADMIN so clinic-wide records remain accessible.
  */

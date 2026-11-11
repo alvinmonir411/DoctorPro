@@ -13,6 +13,7 @@ import {
 import { PatientsService } from './patients.service';
 import { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { assertAdminRole } from '../common/utils/doctor-scope';
 
 @Controller('patients')
 @UseGuards(JwtAuthGuard)
@@ -20,7 +21,8 @@ export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
   @Post()
-  create(@Body() dto: CreatePatientDto) {
+  create(@Body() dto: CreatePatientDto, @Req() req: any) {
+    assertAdminRole(req.user, 'Only clinic administrators can manually add patients.');
     return this.patientsService.create(dto);
   }
 

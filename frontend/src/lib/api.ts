@@ -117,6 +117,8 @@ export const doctors = {
   getAll: (params?: string) =>
     get<any[]>(`/doctors${params ? `?${params}` : ""}`),
 
+  getMyProfile: () => get<any>("/doctors/my-profile"),
+
   getById: (id: string) => get<any>(`/doctors/${id}`),
 
   getBySlug: (slug: string) => get<any>(`/doctors/${slug}`),

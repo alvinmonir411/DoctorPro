@@ -36,6 +36,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { doctors as doctorsApi, departments as deptsApi, upload as uploadApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { getMediaUrl } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -96,6 +97,12 @@ function calculateSlotCapacity(startStr: string, endStr: string, duration: numbe
 }
 
 export default function AdminDoctorsPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const userRole = (user?.role || "").toUpperCase();
+  const isDoctor = userRole === "DOCTOR";
+  const isAssistant = userRole === "DOCTOR_ASSISTANT";
+  const isDoctorScoped = isDoctor || isAssistant;
+
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,16 +170,22 @@ export default function AdminDoctorsPage() {
   const [successMsg, setSuccessMsg] = useState("");
 
   const loadData = async () => {
+    if (!user) return;
+    setLoading(true);
     try {
-      const [docs, depts] = await Promise.allSettled([
-        doctorsApi.getAll(),
+      const [docsRes, depts] = await Promise.allSettled([
+        isDoctorScoped ? doctorsApi.getMyProfile() : doctorsApi.getAll(),
         deptsApi.getAll(),
       ]);
-      if (docs.status === "fulfilled" && Array.isArray(docs.value)) {
-        setDoctorsList(docs.value);
-      } else if (docs.status === "rejected") {
+      if (docsRes.status === "fulfilled") {
+        if (isDoctorScoped) {
+          setDoctorsList(docsRes.value ? [docsRes.value] : []);
+        } else if (Array.isArray(docsRes.value)) {
+          setDoctorsList(docsRes.value);
+        }
+      } else if (docsRes.status === "rejected") {
         toast.error("Failed to Load Doctors", {
-          description: docs.reason?.message || "Could not fetch doctor profiles.",
+          description: docsRes.reason?.message || "Could not fetch doctor profile.",
         });
       }
       if (depts.status === "fulfilled" && Array.isArray(depts.value)) {
@@ -196,8 +209,10 @@ export default function AdminDoctorsPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!authLoading && user) {
+      loadData();
+    }
+  }, [authLoading, userRole, user?.doctorId]);
 
   const openAddModal = () => {
     setEditingDoctor(null);
@@ -519,15 +534,27 @@ export default function AdminDoctorsPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Doctor Management</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {isDoctor
+              ? "My Profile & Hours"
+              : isAssistant
+              ? "Assigned Doctor Profile & Hours"
+              : "Doctor Management"}
+          </h1>
           <p className="text-xs text-muted-foreground">
-            Manage doctor profiles, portrait photos, medical license certificates, available visiting days, slots (10–60 min), and auto-approval
+            {isDoctor
+              ? "Manage your profile photo, medical license, visiting days, consultation slots, and auto-approval rules"
+              : isAssistant
+              ? "View visiting days, slot schedule, and chamber details for your assigned doctor"
+              : "Manage doctor profiles, portrait photos, medical license certificates, available visiting days, slots (10–60 min), and auto-approval"}
           </p>
         </div>
 
-        <Button onClick={openAddModal} className="bg-primary hover:bg-primary/90 rounded-xl text-xs shadow-sm">
-          <Plus className="mr-1.5 h-4 w-4" /> Add New Doctor
-        </Button>
+        {!isDoctorScoped && (
+          <Button onClick={openAddModal} className="bg-primary hover:bg-primary/90 rounded-xl text-xs shadow-sm">
+            <Plus className="mr-1.5 h-4 w-4" /> Add New Doctor
+          </Button>
+        )}
       </div>
 
       {/* Success Notification */}
@@ -538,16 +565,18 @@ export default function AdminDoctorsPage() {
         </div>
       )}
 
-      {/* Search Filter Bar */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Filter doctors by name or specialty..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 h-10 rounded-xl bg-card"
-        />
-      </div>
+      {/* Search Filter Bar (ADMIN only) */}
+      {!isDoctorScoped && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Filter doctors by name or specialty..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-10 rounded-xl bg-card"
+          />
+        </div>
+      )}
 
       {/* Doctors Table */}
       <Card className="rounded-2xl border-border/80 shadow-xs">
@@ -567,7 +596,7 @@ export default function AdminDoctorsPage() {
                     <th className="p-3">Fee</th>
                     <th className="p-3">Certificate</th>
                     <th className="p-3">Status</th>
-                    <th className="p-3 text-right">Actions</th>
+                    {!isAssistant && <th className="p-3 text-right">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -634,22 +663,34 @@ export default function AdminDoctorsPage() {
                         </div>
                       </td>
                       <td className="p-3">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleAutoApprove(doc)}
-                          title="Click to toggle Auto-Approve vs Manual Review"
-                          className="cursor-pointer"
-                        >
-                          {doc.autoApprove ? (
-                            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200 text-[10px] font-semibold">
+                        {isAssistant ? (
+                          doc.autoApprove ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-semibold">
                               Auto-Approved
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-300 hover:bg-amber-100 text-[10px] font-semibold">
+                            <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-300 text-[10px] font-semibold">
                               Manual Review
                             </Badge>
-                          )}
-                        </button>
+                          )
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAutoApprove(doc)}
+                            title="Click to toggle Auto-Approve vs Manual Review"
+                            className="cursor-pointer"
+                          >
+                            {doc.autoApprove ? (
+                              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200 text-[10px] font-semibold">
+                                Auto-Approved
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-300 hover:bg-amber-100 text-[10px] font-semibold">
+                                Manual Review
+                              </Badge>
+                            )}
+                          </button>
+                        )}
                       </td>
                       <td className="p-3 font-bold text-foreground">${doc.consultationFee}</td>
                       <td className="p-3">
@@ -667,39 +708,55 @@ export default function AdminDoctorsPage() {
                         )}
                       </td>
                       <td className="p-3">
-                        <button
-                          onClick={() => handleToggleActive(doc)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer transition-all ${
-                            doc.isActive
-                              ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                              : "bg-muted text-muted-foreground hover:bg-slate-200"
-                          }`}
-                        >
-                          {doc.isActive ? "Active" : "Inactive"}
-                        </button>
-                      </td>
-                      <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={() => openEditModal(doc)}
-                            title="Edit Doctor & Visiting Days"
+                        {isDoctorScoped ? (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                              doc.isActive
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-muted text-muted-foreground"
+                            }`}
                           >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-rose-500 hover:bg-rose-50"
-                            onClick={() => handleDelete(doc.id)}
-                            title="Delete Doctor"
+                            {doc.isActive ? "Active" : "Inactive"}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleToggleActive(doc)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer transition-all ${
+                              doc.isActive
+                                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                : "bg-muted text-muted-foreground hover:bg-slate-200"
+                            }`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                            {doc.isActive ? "Active" : "Inactive"}
+                          </button>
+                        )}
                       </td>
+                      {!isAssistant && (
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              onClick={() => openEditModal(doc)}
+                              title="Edit Profile & Visiting Days"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            {!isDoctorScoped && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-rose-500 hover:bg-rose-50"
+                                onClick={() => handleDelete(doc.id)}
+                                title="Delete Doctor"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -708,13 +765,19 @@ export default function AdminDoctorsPage() {
           ) : (
             <div className="p-10 text-center text-xs text-muted-foreground border border-dashed rounded-xl space-y-3">
               <Stethoscope className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-              <p className="font-semibold text-sm text-foreground">No Doctors Registered Yet</p>
-              <p className="max-w-sm mx-auto">
-                Click below to add your practice doctors with profile photo, medical license certificate, visiting days, and hours.
+              <p className="font-semibold text-sm text-foreground">
+                {isDoctorScoped ? "Doctor Profile Not Linked" : "No Doctors Registered Yet"}
               </p>
-              <Button onClick={openAddModal} size="sm" className="bg-primary hover:bg-primary/90 rounded-xl text-xs">
-                <Plus className="mr-1 h-3.5 w-3.5" /> Add Doctor Now
-              </Button>
+              <p className="max-w-sm mx-auto">
+                {isDoctorScoped
+                  ? "Your doctor profile could not be found. Please contact clinic administration."
+                  : "Click below to add your practice doctors with profile photo, medical license certificate, visiting days, and hours."}
+              </p>
+              {!isDoctorScoped && (
+                <Button onClick={openAddModal} size="sm" className="bg-primary hover:bg-primary/90 rounded-xl text-xs">
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Add Doctor Now
+                </Button>
+              )}
             </div>
           )}
         </CardContent>

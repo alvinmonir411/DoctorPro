@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { DoctorsService } from './doctors.service';
 import { CreateDoctorDto, UpdateDoctorDto } from './dto/doctor.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { assertAdminRole } from '../common/utils/doctor-scope';
 
 @Controller('doctors')
 export class DoctorsController {
@@ -20,8 +22,15 @@ export class DoctorsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() dto: CreateDoctorDto) {
+  create(@Body() dto: CreateDoctorDto, @Req() req: any) {
+    assertAdminRole(req.user, 'Only clinic administrators can add new doctors.');
     return this.doctorsService.create(dto);
+  }
+
+  @Get('my-profile')
+  @UseGuards(JwtAuthGuard)
+  getMyProfile(@Req() req: any) {
+    return this.doctorsService.findMyProfile(req.user);
   }
 
   @Public()
@@ -48,13 +57,14 @@ export class DoctorsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() dto: UpdateDoctorDto) {
-    return this.doctorsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateDoctorDto, @Req() req: any) {
+    return this.doctorsService.update(id, dto, req.user);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string, @Req() req: any) {
+    assertAdminRole(req.user, 'Only clinic administrators can delete doctors.');
     return this.doctorsService.remove(id);
   }
 }

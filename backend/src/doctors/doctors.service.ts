@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDoctorDto, UpdateDoctorDto } from './dto/doctor.dto';
+import {
+  assertNotAssistantRole,
+  resolveScopedDoctorId,
+  ScopedRequestUser,
+} from '../common/utils/doctor-scope';
 
 @Injectable()
 export class DoctorsService {
@@ -110,6 +115,15 @@ export class DoctorsService {
     });
   }
 
+  async findMyProfile(currentUser?: ScopedRequestUser) {
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+    const targetId = scopedDoctorId || currentUser?.doctorId;
+    if (!targetId) {
+      return null;
+    }
+    return this.findOne(targetId);
+  }
+
   async findOne(id: string) {
     const doctor = await this.prisma.doctor.findFirst({
       where: {
@@ -124,17 +138,28 @@ export class DoctorsService {
     return doctor;
   }
 
-  async update(id: string, dto: UpdateDoctorDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateDoctorDto, currentUser?: ScopedRequestUser) {
+    assertNotAssistantRole(currentUser, 'Assistants cannot modify doctor profile details.');
+    const existing = await this.findOne(id);
+
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+    if (scopedDoctorId && existing.id !== scopedDoctorId) {
+      throw new ForbiddenException('You can only edit your own doctor profile.');
+    }
+
     const { schedules, ...doctorData } = dto;
+    if (scopedDoctorId) {
+      // Doctors cannot self-activate or change admin approval status
+      delete (doctorData as any).isActive;
+    }
 
     if (schedules) {
       // Replace schedules
-      await this.prisma.schedule.deleteMany({ where: { doctorId: id } });
+      await this.prisma.schedule.deleteMany({ where: { doctorId: existing.id } });
     }
 
     return this.prisma.doctor.update({
-      where: { id },
+      where: { id: existing.id },
       data: {
         ...doctorData,
         schedules: schedules ? {

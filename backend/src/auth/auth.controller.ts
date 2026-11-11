@@ -18,6 +18,10 @@ import { CreateStaffUserDto, UpdateStaffUserDto } from './dto/user-management.dt
 import { DoctorRegisterDto, CreateAssistantDto } from './dto/doctor-register.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import {
+  assertAdminRole,
+  assertNotAssistantRole,
+} from '../common/utils/doctor-scope';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -59,7 +63,8 @@ export class AuthController {
   @Patch('approve-doctor/:id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Approve doctor registration (Admin)' })
-  async approveDoctor(@Param('id') id: string) {
+  async approveDoctor(@Request() req: any, @Param('id') id: string) {
+    assertAdminRole(req.user, 'Only clinic administrators can approve doctors.');
     return this.authService.approveDoctor(id);
   }
 
@@ -67,13 +72,15 @@ export class AuthController {
   @Patch('reject-doctor/:id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reject doctor registration (Admin)' })
-  async rejectDoctor(@Param('id') id: string) {
+  async rejectDoctor(@Request() req: any, @Param('id') id: string) {
+    assertAdminRole(req.user, 'Only clinic administrators can reject doctors.');
     return this.authService.rejectDoctor(id);
   }
 
   // ─── Doctor Assistant Management (by the Doctor) ───
 
   private async resolveDoctorId(req: any): Promise<string> {
+    assertNotAssistantRole(req.user, 'Assistants cannot manage assistant accounts.');
     if (req.user?.doctorId) return req.user.doctorId;
     const profile = await this.authService.getProfile(req.user.sub);
     if (profile?.doctorId) return profile.doctorId;
@@ -113,7 +120,8 @@ export class AuthController {
   @Get('staff')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all staff users (Admin, Doctor, Doctor Assistant)' })
-  async getStaffUsers() {
+  async getStaffUsers(@Request() req: any) {
+    assertAdminRole(req.user, 'Only clinic administrators can view staff accounts.');
     return this.authService.getStaffUsers();
   }
 
@@ -121,7 +129,8 @@ export class AuthController {
   @Post('staff')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new staff user (Admin, Doctor, Doctor Assistant)' })
-  async createStaffUser(@Body() dto: CreateStaffUserDto) {
+  async createStaffUser(@Request() req: any, @Body() dto: CreateStaffUserDto) {
+    assertAdminRole(req.user, 'Only clinic administrators can create staff accounts.');
     return this.authService.createStaffUser(dto);
   }
 
@@ -130,9 +139,11 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a staff user' })
   async updateStaffUser(
+    @Request() req: any,
     @Param('id') id: string,
     @Body() dto: UpdateStaffUserDto,
   ) {
+    assertAdminRole(req.user, 'Only clinic administrators can update staff accounts.');
     return this.authService.updateStaffUser(id, dto);
   }
 
@@ -140,7 +151,8 @@ export class AuthController {
   @Delete('staff/:id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a staff user' })
-  async deleteStaffUser(@Param('id') id: string) {
+  async deleteStaffUser(@Request() req: any, @Param('id') id: string) {
+    assertAdminRole(req.user, 'Only clinic administrators can delete staff accounts.');
     return this.authService.deleteStaffUser(id);
   }
 }

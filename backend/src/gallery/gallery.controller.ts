@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { GalleryService } from './gallery.service';
 import { CreateGalleryDto, UpdateGalleryDto } from './dto/gallery.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { assertAdminRole } from '../common/utils/doctor-scope';
 
 @Controller('gallery')
 export class GalleryController {
@@ -20,7 +22,8 @@ export class GalleryController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() dto: CreateGalleryDto) {
+  create(@Body() dto: CreateGalleryDto, @Req() req: any) {
+    assertAdminRole(req.user);
     return this.galleryService.create(dto);
   }
 
@@ -35,13 +38,15 @@ export class GalleryController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() dto: UpdateGalleryDto) {
+  update(@Param('id') id: string, @Body() dto: UpdateGalleryDto, @Req() req: any) {
+    assertAdminRole(req.user);
     return this.galleryService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string, @Req() req: any) {
+    assertAdminRole(req.user);
     return this.galleryService.remove(id);
   }
 }

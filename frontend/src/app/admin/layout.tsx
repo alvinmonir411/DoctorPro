@@ -59,8 +59,8 @@ export default function AdminLayout({
       return [
         { label: "Assistant Desk", href: "/admin", icon: LayoutDashboard },
         { label: "Appointment Queue", href: "/admin/appointments", icon: Calendar },
-        { label: "Doctors & Chambers", href: "/admin/doctors", icon: Stethoscope },
-        { label: "Patients", href: "/admin/patients", icon: Users },
+        { label: "Assigned Doctor", href: "/admin/doctors", icon: Stethoscope },
+        { label: "My Patients", href: "/admin/patients", icon: Users },
       ];
     }
     // ADMIN (Full access)
@@ -77,6 +77,19 @@ export default function AdminLayout({
       { label: "Settings", href: "/admin/settings", icon: Settings },
     ];
   }, [userRole]);
+
+  const isRouteAllowed = useMemo(() => {
+    if (isLoginPage || !isAuthenticated || userRole === "ADMIN") return true;
+    return navItems.some((item) =>
+      item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href)
+    );
+  }, [isLoginPage, isAuthenticated, userRole, navItems, pathname]);
+
+  useEffect(() => {
+    if (!isLoginPage && !isLoading && isAuthenticated && !isRouteAllowed) {
+      router.replace("/admin");
+    }
+  }, [isLoginPage, isLoading, isAuthenticated, isRouteAllowed, router]);
 
   const roleTitle =
     userRole === "DOCTOR"
@@ -102,6 +115,14 @@ export default function AdminLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
         Redirecting to Login...
+      </div>
+    );
+  }
+
+  if (!isRouteAllowed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
+        Redirecting to your portal dashboard...
       </div>
     );
   }

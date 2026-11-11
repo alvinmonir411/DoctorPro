@@ -441,9 +441,13 @@ export default function AdminDashboardPage() {
         <Card className="rounded-2xl border-border/80 shadow-xs">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium">Registered Patients</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                {isDoctorScoped ? "My Patients" : "Registered Patients"}
+              </p>
               <p className="text-2xl font-bold text-foreground">{stats?.totalPatients ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground">Patient records</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isDoctorScoped ? "Booked with your practice" : "Patient records"}
+              </p>
             </div>
             <div className="h-12 w-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
               <Users className="h-6 w-6" />
@@ -454,9 +458,19 @@ export default function AdminDashboardPage() {
         <Card className="rounded-2xl border-border/80 shadow-xs">
           <CardContent className="p-5 flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium">Active Doctors</p>
-              <p className="text-2xl font-bold text-foreground">{stats?.totalDoctors ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground">Across {stats?.totalDepartments ?? 0} departments</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                {isDoctorScoped ? "Consultation Fee" : "Active Doctors"}
+              </p>
+              <p className="text-2xl font-bold text-foreground">
+                {isDoctorScoped
+                  ? `$${doctorProfile?.consultationFee ?? 0}`
+                  : (stats?.totalDoctors ?? 0)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {isDoctorScoped
+                  ? `${doctorProfile?.slotDuration ?? 30} min per consultation slot`
+                  : `Across ${stats?.totalDepartments ?? 0} departments`}
+              </p>
             </div>
             <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <Stethoscope className="h-6 w-6" />

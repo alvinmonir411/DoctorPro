@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { assertAdminRole } from '../common/utils/doctor-scope';
 
 @Controller('departments')
 export class DepartmentsController {
@@ -20,7 +22,8 @@ export class DepartmentsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() createDepartmentDto: CreateDepartmentDto) {
+  create(@Body() createDepartmentDto: CreateDepartmentDto, @Req() req: any) {
+    assertAdminRole(req.user);
     return this.departmentsService.create(createDepartmentDto);
   }
 
@@ -38,13 +41,15 @@ export class DepartmentsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() updateDepartmentDto: UpdateDepartmentDto) {
+  update(@Param('id') id: string, @Body() updateDepartmentDto: UpdateDepartmentDto, @Req() req: any) {
+    assertAdminRole(req.user);
     return this.departmentsService.update(id, updateDepartmentDto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string, @Req() req: any) {
+    assertAdminRole(req.user);
     return this.departmentsService.remove(id);
   }
 }
