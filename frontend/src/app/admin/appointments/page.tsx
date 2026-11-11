@@ -17,9 +17,14 @@ import {
   Phone,
 } from "lucide-react";
 import { appointments as appsApi, doctors as doctorsApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export default function AdminAppointmentsPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const userRole = (user?.role || "").toUpperCase();
+  const isDoctorScoped = userRole === "DOCTOR" || userRole === "DOCTOR_ASSISTANT";
+
   const [appointmentsList, setAppointmentsList] = useState<any[]>([]);
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,21 +33,33 @@ export default function AdminAppointmentsPage() {
   const [search, setSearch] = useState("");
 
   const loadData = async () => {
+    if (!user) return;
+    setLoading(true);
     try {
+      const appQuery =
+        isDoctorScoped && user?.doctorId
+          ? `doctorId=${encodeURIComponent(user.doctorId)}`
+          : undefined;
+
       const [apps, docs] = await Promise.allSettled([
-        appsApi.getAll(),
-        doctorsApi.getAll(),
+        appsApi.getAll(appQuery),
+        isDoctorScoped ? Promise.resolve([]) : doctorsApi.getAll(),
       ]);
+
       if (apps.status === "fulfilled" && Array.isArray(apps.value)) {
-        setAppointmentsList(apps.value);
+        const list =
+          isDoctorScoped && user?.doctorId
+            ? apps.value.filter((app) => app.doctorId === user.doctorId)
+            : apps.value;
+        setAppointmentsList(list);
       } else if (apps.status === "rejected") {
         toast.error("Failed to Load Appointments", {
           description: apps.reason?.message || "Could not fetch appointments.",
         });
       }
-      if (docs.status === "fulfilled" && Array.isArray(docs.value)) {
+      if (!isDoctorScoped && docs.status === "fulfilled" && Array.isArray(docs.value)) {
         setDoctorsList(docs.value);
-      } else if (docs.status === "rejected") {
+      } else if (!isDoctorScoped && docs.status === "rejected") {
         toast.error("Failed to Load Doctors", {
           description: docs.reason?.message || "Could not fetch doctors list.",
         });
@@ -58,8 +75,10 @@ export default function AdminAppointmentsPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!authLoading && user) {
+      loadData();
+    }
+  }, [authLoading, userRole, user?.doctorId]);
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
@@ -117,8 +136,20 @@ export default function AdminAppointmentsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Appointment Records</h1>
-          <p className="text-xs text-muted-foreground">Manage patient consultation requests and schedule appointments</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {userRole === "DOCTOR"
+              ? "My Appointments"
+              : userRole === "DOCTOR_ASSISTANT"
+              ? "Doctor's Appointments"
+              : "Appointment Records"}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {userRole === "DOCTOR"
+              ? "View and manage patient appointments booked with you"
+              : userRole === "DOCTOR_ASSISTANT"
+              ? "View and manage consultation requests for your assigned doctor"
+              : "Manage patient consultation requests and schedule appointments"}
+          </p>
         </div>
       </div>
 
@@ -152,8 +183,8 @@ export default function AdminAppointmentsPage() {
             ))}
           </div>
 
-          {/* Doctor filter */}
-          {doctorsList.length > 0 && (
+          {/* Doctor filter (ADMIN only) */}
+          {!isDoctorScoped && doctorsList.length > 0 && (
             <select
               value={doctorFilter}
               onChange={(e) => setDoctorFilter(e.target.value)}
@@ -182,7 +213,7 @@ export default function AdminAppointmentsPage() {
                   <tr>
                     <th className="p-3">Patient</th>
                     <th className="p-3">Phone</th>
-                    <th className="p-3">Doctor</th>
+                    {!isDoctorScoped && <th className="p-3">Doctor</th>}
                     <th className="p-3">Consultation Date & Slot</th>
                     <th className="p-3">Symptoms / Notes</th>
                     <th className="p-3">Status</th>
@@ -196,9 +227,11 @@ export default function AdminAppointmentsPage() {
                         {app.patient?.name || "Patient"}
                       </td>
                       <td className="p-3 text-muted-foreground">{app.patient?.phone}</td>
-                      <td className="p-3 font-medium text-foreground">
-                        {app.doctor?.name || "Doctor"}
-                      </td>
+                      {!isDoctorScoped && (
+                        <td className="p-3 font-medium text-foreground">
+                          {app.doctor?.name || "Doctor"}
+                        </td>
+                      )}
                       <td className="p-3">
                         <span className="font-semibold text-foreground">
                           {new Date(app.date).toISOString().split("T")[0]}

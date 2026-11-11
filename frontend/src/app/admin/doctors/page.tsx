@@ -59,13 +59,13 @@ interface DaySchedule {
 }
 
 const DEFAULT_WEEKLY_SCHEDULE: DaySchedule[] = [
-  { dayOfWeek: 6, name: "Saturday (শনিবার)", short: "Sat", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
-  { dayOfWeek: 0, name: "Sunday (রবিবার)", short: "Sun", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
-  { dayOfWeek: 1, name: "Monday (সোমবার)", short: "Mon", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
-  { dayOfWeek: 2, name: "Tuesday (মঙ্গলবার)", short: "Tue", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
-  { dayOfWeek: 3, name: "Wednesday (বুধবার)", short: "Wed", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
-  { dayOfWeek: 4, name: "Thursday (বৃহস্পতিবার)", short: "Thu", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
-  { dayOfWeek: 5, name: "Friday (শুক্রবার)", short: "Fri", enabled: false, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 6, name: "Saturday", short: "Sat", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 0, name: "Sunday", short: "Sun", enabled: false, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 1, name: "Monday", short: "Mon", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 2, name: "Tuesday", short: "Tue", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 3, name: "Wednesday", short: "Wed", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 4, name: "Thursday", short: "Thu", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
+  { dayOfWeek: 5, name: "Friday", short: "Fri", enabled: true, startTime: "09:00", endTime: "14:00", maxPatients: 20 },
 ];
 
 const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -110,18 +110,18 @@ export default function AdminDoctorsPage() {
 
   // Form states
   const [name, setName] = useState("");
-  const [title, setTitle] = useState("MBBS, FCPS");
+  const [title, setTitle] = useState("MD, FACP");
   const [specialization, setSpecialization] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [customDeptName, setCustomDeptName] = useState("");
-  const [consultationFee, setConsultationFee] = useState<number>(1000);
+  const [consultationFee, setConsultationFee] = useState<number>(150);
   const [experienceYears, setExperienceYears] = useState<number>(5);
-  const [chamberAddress, setChamberAddress] = useState("DoctorPro Clinic, Dhaka");
+  const [chamberAddress, setChamberAddress] = useState("DoctorPro Medical Center, New York, NY");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
 
-  // Slot duration & Auto approve & Appointment window (কয়টা থেকে কয়টা অ্যাপয়েন্টমেন্ট নিবেন)
+  // Slot duration & Auto approve & Appointment window
   const [slotDuration, setSlotDuration] = useState<number>(30);
   const [autoApprove, setAutoApprove] = useState<boolean>(false);
   const [appointmentStartTime, setAppointmentStartTime] = useState<string>("09:00");
@@ -202,13 +202,13 @@ export default function AdminDoctorsPage() {
   const openAddModal = () => {
     setEditingDoctor(null);
     setName("");
-    setTitle("MBBS, FCPS");
+    setTitle("MD, FACP");
     setSpecialization("");
     setDepartmentId(departmentsList[0]?.id || "");
     setCustomDeptName("");
-    setConsultationFee(1000);
+    setConsultationFee(150);
     setExperienceYears(5);
-    setChamberAddress("DoctorPro Clinic, Dhaka");
+    setChamberAddress("DoctorPro Medical Center, New York, NY");
     setPhone("");
     setEmail("");
     setBio("");
@@ -521,7 +521,7 @@ export default function AdminDoctorsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Doctor Management</h1>
           <p className="text-xs text-muted-foreground">
-            Manage doctor profiles, portrait photos, BMDC certificates, available visiting days, slots (10–60 min), and auto-approval
+            Manage doctor profiles, portrait photos, medical license certificates, available visiting days, slots (10–60 min), and auto-approval
           </p>
         </div>
 
@@ -651,7 +651,7 @@ export default function AdminDoctorsPage() {
                           )}
                         </button>
                       </td>
-                      <td className="p-3 font-bold text-foreground">৳{doc.consultationFee}</td>
+                      <td className="p-3 font-bold text-foreground">${doc.consultationFee}</td>
                       <td className="p-3">
                         {doc.certificate ? (
                           <a
@@ -710,7 +710,7 @@ export default function AdminDoctorsPage() {
               <Stethoscope className="h-10 w-10 text-muted-foreground/40 mx-auto" />
               <p className="font-semibold text-sm text-foreground">No Doctors Registered Yet</p>
               <p className="max-w-sm mx-auto">
-                Click below to add your practice doctors with profile photo, BMDC certificate, visiting days, and hours.
+                Click below to add your practice doctors with profile photo, medical license certificate, visiting days, and hours.
               </p>
               <Button onClick={openAddModal} size="sm" className="bg-primary hover:bg-primary/90 rounded-xl text-xs">
                 <Plus className="mr-1 h-3.5 w-3.5" /> Add Doctor Now
@@ -823,7 +823,7 @@ export default function AdminDoctorsPage() {
                     <div className="p-3.5 rounded-xl bg-background border flex flex-col justify-between space-y-3">
                       <div className="space-y-1">
                         <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                          <FileCheck className="h-4 w-4 text-primary" /> Medical License / BMDC Certificate
+                          <FileCheck className="h-4 w-4 text-primary" /> Medical License / Board Certificate
                         </Label>
                         <p className="text-[10px] text-muted-foreground">
                           Upload registration or degree credentials (PDF, PNG, JPG, max 10MB)
@@ -892,23 +892,23 @@ export default function AdminDoctorsPage() {
                 <div className="p-4 sm:p-5 rounded-2xl bg-primary/5 border border-primary/20 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <Clock className="h-4 w-4 text-primary" /> 2. Consultation Slots & Appointment Window (অ্যাপয়েন্টমেন্ট নেওয়ার সময়)
+                      <Clock className="h-4 w-4 text-primary" /> 2. Consultation Slots & Appointment Window
                     </h4>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
                       {formatTime12h(appointmentStartTime)} – {formatTime12h(appointmentEndTime)}
                     </span>
                   </div>
 
-                  {/* Appointment Taking Hours (কয়টা থেকে কয়টা অ্যাপয়েন্টমেন্ট নিবেন) */}
+                  {/* Appointment Taking Hours */}
                   <div className="p-3.5 rounded-xl bg-background border space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b pb-2">
                       <div>
                         <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5 text-primary" />
-                          Appointment Taking Hours (কয়টা থেকে কয়টা অ্যাপয়েন্টমেন্ট নিবেন)
+                          Daily Appointment Taking Hours
                         </Label>
                         <p className="text-[10px] text-muted-foreground">
-                          Select from what time to what time the doctor accepts patient bookings each day:
+                          Select the daily start and end times when the doctor accepts patient bookings:
                         </p>
                       </div>
                     </div>
@@ -916,7 +916,7 @@ export default function AdminDoctorsPage() {
                     {/* Quick Shift Presets */}
                     <div className="space-y-1">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                        Quick Shift Presets (কুইক শিফট নির্বাচন):
+                        Quick Shift Presets:
                       </span>
                       <div className="flex flex-wrap gap-1.5 pt-0.5">
                         {SHIFT_PRESETS.map((preset) => {
@@ -948,7 +948,7 @@ export default function AdminDoctorsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                       <div className="space-y-1">
                         <Label className="text-[11px] font-semibold flex items-center justify-between">
-                          <span>Start Time (কয়টা থেকে) *</span>
+                          <span>Start Time *</span>
                           <span className="text-[10px] font-bold text-primary">{formatTime12h(appointmentStartTime)}</span>
                         </Label>
                         <Input
@@ -962,7 +962,7 @@ export default function AdminDoctorsPage() {
 
                       <div className="space-y-1">
                         <Label className="text-[11px] font-semibold flex items-center justify-between">
-                          <span>End Time (কয়টা পর্যন্ত) *</span>
+                          <span>End Time *</span>
                           <span className="text-[10px] font-bold text-primary">{formatTime12h(appointmentEndTime)}</span>
                         </Label>
                         <Input
@@ -976,7 +976,7 @@ export default function AdminDoctorsPage() {
 
                       <div className="space-y-1">
                         <Label className="text-[11px] font-semibold flex items-center justify-between">
-                          <span>Daily Quota (দৈনিক রোগী)</span>
+                          <span>Daily Quota</span>
                           <span className="text-[10px] text-muted-foreground">Max limit</span>
                         </Label>
                         <Input
@@ -995,9 +995,9 @@ export default function AdminDoctorsPage() {
                       <div className="flex items-center gap-1.5 text-foreground font-medium">
                         <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
                         <span>
-                          {formatTime12h(appointmentStartTime)} থেকে {formatTime12h(appointmentEndTime)} • প্রতি রোগী{" "}
-                          <strong className="text-primary font-bold">{slotDuration} মিনিট</strong> হিসেবে দিনে সর্বোচ্চ{" "}
-                          <strong className="text-emerald-700 font-bold">{calculateSlotCapacity(appointmentStartTime, appointmentEndTime, slotDuration)}টি স্লট</strong>।
+                          {formatTime12h(appointmentStartTime)} to {formatTime12h(appointmentEndTime)} • at{" "}
+                          <strong className="text-primary font-bold">{slotDuration} min</strong> per patient, up to{" "}
+                          <strong className="text-emerald-700 font-bold">{calculateSlotCapacity(appointmentStartTime, appointmentEndTime, slotDuration)} daily slots</strong>.
                         </span>
                       </div>
 
@@ -1138,7 +1138,7 @@ export default function AdminDoctorsPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Consultation Fee (৳) *</Label>
+                      <Label className="text-xs font-semibold">Consultation Fee ($ USD) *</Label>
                       <Input
                         type="number"
                         min="0"
@@ -1161,9 +1161,9 @@ export default function AdminDoctorsPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Chamber Phone</Label>
+                      <Label className="text-xs font-semibold">Office Phone</Label>
                       <Input
-                        placeholder="01700112233"
+                        placeholder="+1 (555) 234-5678"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         className="rounded-xl h-10"
@@ -1172,9 +1172,9 @@ export default function AdminDoctorsPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold">Chamber Room & Location</Label>
+                    <Label className="text-xs font-semibold">Suite / Office Location</Label>
                     <Input
-                      placeholder="e.g. Room 101, DoctorPro Clinic"
+                      placeholder="e.g. Suite 101, DoctorPro Medical Center, NY"
                       value={chamberAddress}
                       onChange={(e) => setChamberAddress(e.target.value)}
                       className="rounded-xl h-10"
@@ -1194,7 +1194,7 @@ export default function AdminDoctorsPage() {
                 </div>
               </div>
 
-              {/* ─── RIGHT COLUMN (Col 7-12): Weekly Visiting Schedule (সপ্তাহে উপস্থিতির দিন ও সময়) ─── */}
+              {/* ─── RIGHT COLUMN (Col 7-12): Weekly Visiting Schedule ─── */}
               <div className="lg:col-span-6 space-y-5">
                 <div className="p-4 sm:p-5 rounded-2xl bg-muted/40 border border-border/80 space-y-4 h-full flex flex-col justify-between">
                   <div className="space-y-4">
@@ -1204,7 +1204,7 @@ export default function AdminDoctorsPage() {
                           <Calendar className="h-4 w-4 text-primary" /> 4. Weekly Visiting Days & Hours
                         </h4>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          চেম্বারে যেসব দিন বসবেন সেগুলো অন রাখুন এবং সময় সেট করুন।
+                          Toggle the days the doctor is available and customize their clinic hours.
                         </p>
                       </div>
 
@@ -1318,7 +1318,7 @@ export default function AdminDoctorsPage() {
                               </div>
                             ) : (
                               <div className="text-[11px] text-muted-foreground italic">
-                                চেম্বার বন্ধ (No slots generated on this day)
+                                Clinic Closed (No slots generated on this day)
                               </div>
                             )}
                           </div>

@@ -164,7 +164,7 @@ export default function AdminServicesPage() {
                           {s.department?.name || "General"}
                         </Badge>
                       </td>
-                      <td className="p-3 font-bold text-foreground">৳{s.price}</td>
+                      <td className="p-3 font-bold text-foreground">${s.price}</td>
                       <td className="p-3 text-muted-foreground max-w-sm truncate">{s.description || "—"}</td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -216,7 +216,7 @@ export default function AdminServicesPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">Standard Fee (৳)</Label>
+                <Label className="text-xs">Standard Fee ($ USD)</Label>
                 <Input
                   type="number"
                   value={price}

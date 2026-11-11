@@ -340,7 +340,7 @@ export default function DoctorAssistantsPage() {
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="01700-000000"
+                  placeholder="+1 (555) 234-5678"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="pl-9 h-11 rounded-xl"

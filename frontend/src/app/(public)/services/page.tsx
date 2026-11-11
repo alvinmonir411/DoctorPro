@@ -113,7 +113,7 @@ export default function ServicesPage() {
                     <div>
                       <span className="text-[11px] text-muted-foreground">Standard Fee</span>
                       <p className="font-bold text-base text-foreground">
-                        {srv.price > 0 ? `৳${srv.price}` : "Free / Included"}
+                        {srv.price > 0 ? `$${srv.price}` : "Free / Included"}
                       </p>
                     </div>
                     <Button asChild size="sm" className="bg-primary hover:bg-primary/90 rounded-lg text-xs">

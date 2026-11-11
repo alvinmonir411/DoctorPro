@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto';
+import {
+  resolveScopedDoctorId,
+  ScopedRequestUser,
+} from '../common/utils/doctor-scope';
 
 @Injectable()
 export class PatientsService {
@@ -15,22 +23,35 @@ export class PatientsService {
     });
   }
 
-  async findAll(search?: string) {
-    return this.prisma.patient.findMany({
-      where: search
-        ? {
-            OR: [
-              { name: { contains: search } },
-              { phone: { contains: search } },
-              { email: { contains: search } },
-            ],
-          }
-        : undefined,
+  async findAll(search?: string, currentUser?: ScopedRequestUser) {
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+    const searchFilter = search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            { phone: { contains: search } },
+            { email: { contains: search } },
+          ],
+        }
+      : undefined;
+
+    const where = scopedDoctorId
+      ? {
+          AND: [
+            ...(searchFilter ? [searchFilter] : []),
+            { appointments: { some: { doctorId: scopedDoctorId } } },
+          ],
+        }
+      : searchFilter;
+
+    const patients = await this.prisma.patient.findMany({
+      where,
       include: {
         appointments: {
+          where: scopedDoctorId ? { doctorId: scopedDoctorId } : undefined,
           include: { doctor: true },
           orderBy: { date: 'desc' },
-          take: 5,
+          take: scopedDoctorId ? undefined : 5,
         },
         _count: {
           select: { appointments: true },
@@ -38,24 +59,37 @@ export class PatientsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    if (!scopedDoctorId) return patients;
+
+    return patients.map((pt) => ({
+      ...pt,
+      _count: { appointments: pt.appointments.length },
+      appointments: pt.appointments.slice(0, 5),
+    }));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, currentUser?: ScopedRequestUser) {
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
     const patient = await this.prisma.patient.findUnique({
       where: { id },
       include: {
         appointments: {
+          where: scopedDoctorId ? { doctorId: scopedDoctorId } : undefined,
           include: { doctor: true },
           orderBy: { date: 'desc' },
         },
       },
     });
     if (!patient) throw new NotFoundException('Patient not found');
+    if (scopedDoctorId && patient.appointments.length === 0) {
+      throw new ForbiddenException('You can only view records of patients booked with you.');
+    }
     return patient;
   }
 
-  async update(id: string, dto: UpdatePatientDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdatePatientDto, currentUser?: ScopedRequestUser) {
+    await this.findOne(id, currentUser);
     return this.prisma.patient.update({
       where: { id },
       data: {
@@ -65,8 +99,19 @@ export class PatientsService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, currentUser?: ScopedRequestUser) {
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+    await this.findOne(id, currentUser);
+    if (scopedDoctorId) {
+      const otherDoctorCount = await this.prisma.appointment.count({
+        where: { patientId: id, doctorId: { not: scopedDoctorId } },
+      });
+      if (otherDoctorCount > 0) {
+        throw new ForbiddenException(
+          'Only clinic administration can delete a patient with appointments under other doctors.',
+        );
+      }
+    }
     return this.prisma.patient.delete({ where: { id } });
   }
 }

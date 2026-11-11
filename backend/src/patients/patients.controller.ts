@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { PatientsService } from './patients.service';
@@ -24,22 +25,22 @@ export class PatientsController {
   }
 
   @Get()
-  findAll(@Query('search') search?: string) {
-    return this.patientsService.findAll(search);
+  findAll(@Req() req: any, @Query('search') search?: string) {
+    return this.patientsService.findAll(search, req.user);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.patientsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.patientsService.findOne(id, req.user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePatientDto) {
-    return this.patientsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdatePatientDto, @Req() req: any) {
+    return this.patientsService.update(id, dto, req.user);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.patientsService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.patientsService.remove(id, req.user);
   }
 }

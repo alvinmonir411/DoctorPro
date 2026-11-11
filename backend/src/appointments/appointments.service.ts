@@ -1,5 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  resolveScopedDoctorId,
+  ScopedRequestUser,
+} from '../common/utils/doctor-scope';
 import {
   BookPublicAppointmentDto,
   CreateAppointmentDto,
@@ -78,7 +87,13 @@ export class AppointmentsService {
     });
   }
 
-  async create(dto: CreateAppointmentDto) {
+  async create(dto: CreateAppointmentDto, currentUser?: ScopedRequestUser) {
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+    if (scopedDoctorId && dto.doctorId !== scopedDoctorId) {
+      throw new ForbiddenException('You can only create appointments for your own practice.');
+    }
+
+    const effectiveDoctorId = scopedDoctorId ?? dto.doctorId;
     const appointmentDate = new Date(dto.date);
     const startOfDay = new Date(appointmentDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -87,7 +102,7 @@ export class AppointmentsService {
 
     const existingCount = await this.prisma.appointment.count({
       where: {
-        doctorId: dto.doctorId,
+        doctorId: effectiveDoctorId,
         date: { gte: startOfDay, lte: endOfDay },
         status: { not: 'CANCELLED' },
       },
@@ -97,7 +112,7 @@ export class AppointmentsService {
     return this.prisma.appointment.create({
       data: {
         patientId: dto.patientId,
-        doctorId: dto.doctorId,
+        doctorId: effectiveDoctorId,
         date: appointmentDate,
         timeSlot: dto.timeSlot,
         status: dto.status || 'PENDING',
@@ -112,15 +127,20 @@ export class AppointmentsService {
     });
   }
 
-  async findAll(params?: {
-    doctorId?: string;
-    patientId?: string;
-    status?: string;
-    date?: string;
-    startDate?: string;
-    endDate?: string;
-  }) {
+  async findAll(
+    params?: {
+      doctorId?: string;
+      patientId?: string;
+      status?: string;
+      date?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+    currentUser?: ScopedRequestUser,
+  ) {
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
     const { doctorId, patientId, status, date, startDate, endDate } = params || {};
+    const effectiveDoctorId = scopedDoctorId ?? doctorId;
 
     let dateFilter: any = undefined;
     if (date) {
@@ -136,7 +156,7 @@ export class AppointmentsService {
 
     return this.prisma.appointment.findMany({
       where: {
-        ...(doctorId ? { doctorId } : {}),
+        ...(effectiveDoctorId ? { doctorId: effectiveDoctorId } : {}),
         ...(patientId ? { patientId } : {}),
         ...(status ? { status } : {}),
         ...(dateFilter ? { date: dateFilter } : {}),
@@ -151,7 +171,7 @@ export class AppointmentsService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, currentUser?: ScopedRequestUser) {
     const appointment = await this.prisma.appointment.findUnique({
       where: { id },
       include: {
@@ -162,11 +182,17 @@ export class AppointmentsService {
       },
     });
     if (!appointment) throw new NotFoundException('Appointment not found');
+
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+    if (scopedDoctorId && appointment.doctorId !== scopedDoctorId) {
+      throw new ForbiddenException('You can only access your own appointments.');
+    }
+
     return appointment;
   }
 
-  async update(id: string, dto: UpdateAppointmentDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateAppointmentDto, currentUser?: ScopedRequestUser) {
+    await this.findOne(id, currentUser);
     return this.prisma.appointment.update({
       where: { id },
       data: {
@@ -182,8 +208,8 @@ export class AppointmentsService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, currentUser?: ScopedRequestUser) {
+    await this.findOne(id, currentUser);
     return this.prisma.appointment.delete({ where: { id } });
   }
 
@@ -479,9 +505,20 @@ export class AppointmentsService {
 
   // ─── Advance / Manage Live Chamber Queue (Doctor or Assistant) ───
 
-  async advanceLiveQueue(doctorId: string, action: string, targetSerial?: number) {
+  async advanceLiveQueue(
+    doctorId: string,
+    action: string,
+    targetSerial?: number,
+    currentUser?: ScopedRequestUser,
+  ) {
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+    if (scopedDoctorId && doctorId && doctorId !== scopedDoctorId) {
+      throw new ForbiddenException('You can only manage your own live chamber queue.');
+    }
+    const effectiveDoctorId = scopedDoctorId ?? doctorId;
+
     const doctor = await this.prisma.doctor.findUnique({
-      where: { id: doctorId },
+      where: { id: effectiveDoctorId },
     });
     if (!doctor) throw new NotFoundException('Doctor not found');
 
@@ -499,7 +536,7 @@ export class AppointmentsService {
       if (nextSerial > 0) {
         await this.prisma.appointment.updateMany({
           where: {
-            doctorId,
+            doctorId: effectiveDoctorId,
             date: { gte: startOfDay, lte: endOfDay },
             serialNumber: nextSerial,
           },
@@ -513,7 +550,7 @@ export class AppointmentsService {
       // Mark new serial appointment as SERVING
       await this.prisma.appointment.updateMany({
         where: {
-          doctorId,
+          doctorId: effectiveDoctorId,
           date: { gte: startOfDay, lte: endOfDay },
           serialNumber: nextSerial,
         },
@@ -528,7 +565,7 @@ export class AppointmentsService {
     }
 
     const updatedDoctor = await this.prisma.doctor.update({
-      where: { id: doctorId },
+      where: { id: effectiveDoctorId },
       data: {
         currentServingSerial: nextSerial,
         chamberStatus: nextStatus,

@@ -284,7 +284,7 @@ export default function AdminStaffPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-[10px] text-emerald-700 hover:underline font-semibold mt-1"
                     >
-                      <FileCheck className="h-3 w-3" /> Inspect BMDC Certificate
+                      <FileCheck className="h-3 w-3" /> Inspect Medical License
                     </a>
                   )}
                 </div>
@@ -530,7 +530,7 @@ export default function AdminStaffPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs">Contact Phone</Label>
                 <Input
-                  placeholder="01700000000"
+                  placeholder="+1 (555) 234-5678"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="rounded-xl h-10"

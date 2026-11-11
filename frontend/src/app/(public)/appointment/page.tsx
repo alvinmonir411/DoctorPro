@@ -337,7 +337,7 @@ function AppointmentContent() {
                         </div>
                         <div className="text-right">
                           <span className="text-muted-foreground">Consultation Fee</span>
-                          <p className="font-bold text-sm text-foreground">৳{selectedDoctor.consultationFee}</p>
+                          <p className="font-bold text-sm text-foreground">${selectedDoctor.consultationFee}</p>
                         </div>
                       </div>
                     )}
@@ -461,7 +461,7 @@ function AppointmentContent() {
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="e.g. 01700000000"
+                        placeholder="e.g. +1 (555) 234-5678"
                         value={patientPhone}
                         onChange={(e) => setPatientPhone(e.target.value)}
                         required

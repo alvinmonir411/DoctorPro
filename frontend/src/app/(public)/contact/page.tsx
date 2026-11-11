@@ -41,8 +41,8 @@ export default function ContactPage() {
                   <div className="flex items-start gap-3 text-sm">
                     <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-foreground">Chamber Address</p>
-                      <p className="text-xs text-muted-foreground">House 42, Road 11, Dhanmondi, Dhaka, Bangladesh</p>
+                      <p className="font-semibold text-foreground">Clinic Address</p>
+                      <p className="text-xs text-muted-foreground">450 Lexington Ave, Suite 1400, New York, NY 10017</p>
                     </div>
                   </div>
 
@@ -50,8 +50,8 @@ export default function ContactPage() {
                     <Phone className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-foreground">Phone & Hotline</p>
-                      <p className="text-xs text-muted-foreground">Reception: +880 1700-000000</p>
-                      <p className="text-xs text-muted-foreground">Emergency: +880 1900-000000</p>
+                      <p className="text-xs text-muted-foreground">Reception: +1 (555) 234-5678</p>
+                      <p className="text-xs text-muted-foreground">Emergency: +1 (555) 911-0000</p>
                     </div>
                   </div>
 
@@ -67,8 +67,8 @@ export default function ContactPage() {
                     <Clock className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-foreground">Consultation Hours</p>
-                      <p className="text-xs text-muted-foreground">Sat - Thu: 9:00 AM - 9:00 PM</p>
-                      <p className="text-xs text-muted-foreground">Friday: Closed / Emergency</p>
+                      <p className="text-xs text-muted-foreground">Mon - Sat: 8:00 AM - 8:00 PM</p>
+                      <p className="text-xs text-muted-foreground">Sunday: Closed / Emergency On-Call</p>
                     </div>
                   </div>
                 </div>
@@ -102,7 +102,7 @@ export default function ContactPage() {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Phone Number *</Label>
-                        <Input placeholder="01700000000" required className="rounded-xl h-10" />
+                        <Input placeholder="+1 (555) 234-5678" required className="rounded-xl h-10" />
                       </div>
                     </div>
 

@@ -198,7 +198,7 @@ export class AuthService {
         appointmentEndTime: dto.appointmentEndTime || '17:00',
         maxDailyPatients: dto.maxDailyPatients ? Number(dto.maxDailyPatients) : 20,
         experienceYears: dto.experienceYears ? Number(dto.experienceYears) : 5,
-        chamberAddress: dto.chamberAddress || 'DoctorPro Clinic, Dhaka',
+        chamberAddress: dto.chamberAddress || 'DoctorPro Medical Center, New York, NY',
         phone: dto.phone || null,
         email: dto.email,
         consultationFee: dto.consultationFee ? Number(dto.consultationFee) : 1000,

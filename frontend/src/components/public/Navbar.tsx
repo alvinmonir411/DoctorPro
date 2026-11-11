@@ -46,7 +46,7 @@ export function PublicNavbar() {
                 Need immediate doctor consultation or chamber appointment?
               </span>
               <span className="text-white font-medium flex items-center gap-1.5">
-                <Phone className="h-3 w-3 text-sky-400" /> Hotline: +880 1900-000000
+                <Phone className="h-3 w-3 text-sky-400" /> Hotline: +1 (555) 911-0000
               </span>
             </div>
 

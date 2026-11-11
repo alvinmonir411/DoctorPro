@@ -46,16 +46,16 @@ interface ChatMessage {
 }
 
 const QUICK_SYMPTOMS = [
-  "👁️ চোখে ঝাপসা দেখছি ও ব্যথা করছে",
-  "🌡️ কয়েকদিন ধরে জ্বর, মাথা ব্যথা ও কাশি",
-  "❤️ বুকে ব্যথা বা বুক ধড়ফড় করছে",
-  "🌿 ত্বকে চুলকানি ও র‍্যাশ উঠেছে",
+  "👁️ Blurry vision or eye pain",
+  "🌡️ Persistent fever, headache & cough",
+  "❤️ Chest discomfort or heart palpitations",
+  "🌿 Skin rash, itching or allergies",
 ];
 
 const INITIAL_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "model",
-  text: "আসসালামু আলাইকুম! আমি DoctorPro AI স্বাস্থ্য সহকারী। আপনার বর্তমান শারীরিক সমস্যা বা প্রশ্নটি বাংলায় বা ইংরেজিতে লিখুন—আমি প্রাথমিক পরামর্শ দেবো এবং আমাদের ক্লিনিকের কোন বিশেষজ্ঞ ডাক্তার দেখানো উচিত তা সাজেস্ট করবো।",
+  text: "Hello! I'm your DoctorPro AI Health Assistant. Describe your symptoms or ask a health question—I'll provide initial guidance and recommend the right specialist doctor in our clinic to book with.",
 };
 
 export function AIChatbot() {
@@ -127,7 +127,7 @@ export function AIChatbot() {
         {
           id: (Date.now() + 2).toString(),
           role: "model",
-          text: `দুঃখিত, এই মুহূর্তে AI সার্ভারে সংযোগ পাওয়া যাচ্ছে না: ${exactProblem}`,
+          text: `Sorry, unable to reach the AI assistant right now: ${exactProblem}`,
         },
       ]);
     } finally {
@@ -207,7 +207,7 @@ export function AIChatbot() {
                   {m.urgencyLevel === "URGENT" && (
                     <div className="mb-2 p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-bold text-[11px] flex items-center gap-1.5">
                       <AlertTriangle className="h-4 w-4 shrink-0" />
-                      <span>জরুরি সতর্কতা: অবিলম্বে নিকটস্থ হাসপাতালের জরুরি বিভাগে যান!</span>
+                      <span>URGENT ALERT: Please call 911 or visit the nearest Emergency Room immediately!</span>
                     </div>
                   )}
 
@@ -247,7 +247,7 @@ export function AIChatbot() {
                               </p>
                               <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground">
                                 <span className="font-bold text-foreground">
-                                  ৳{doc.consultationFee}
+                                  ${doc.consultationFee} USD
                                 </span>
                                 <span className="flex items-center gap-0.5">
                                   <Clock className="h-2.5 w-2.5" />
@@ -282,7 +282,7 @@ export function AIChatbot() {
             {messages.length === 1 && !loading && (
               <div className="pt-1 space-y-1.5">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">
-                  দ্রুত জিজ্ঞাসা করুন (Quick Symptoms):
+                  Quick Symptoms & Questions:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {QUICK_SYMPTOMS.map((sym) => (
@@ -304,7 +304,7 @@ export function AIChatbot() {
               <div className="flex items-start">
                 <div className="bg-background border rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-xs text-muted-foreground flex items-center gap-2 shadow-xs">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                  <span>AI ডাক্তার খুঁজছে ও পরামর্শ লিখছে...</span>
+                  <span>Finding the best specialist & preparing guidance...</span>
                 </div>
               </div>
             )}
@@ -320,7 +320,7 @@ export function AIChatbot() {
           >
             <input
               type="text"
-              placeholder="আপনার সমস্যা বা প্রশ্ন লিখুন..."
+              placeholder="Describe your symptoms or ask a question..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={loading}

@@ -197,7 +197,7 @@ export default function DoctorsPage() {
                     {/* Certificate Verified Badge */}
                     {doc.certificate && (
                       <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-xs text-emerald-700 border border-emerald-200/80 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs">
-                        <FileCheck className="h-3.5 w-3.5 text-emerald-600" /> Verified BMDC
+                        <FileCheck className="h-3.5 w-3.5 text-emerald-600" /> Board Verified
                       </div>
                     )}
 
@@ -241,7 +241,7 @@ export default function DoctorsPage() {
 
                     <div className="pt-2 border-t flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Consultation Fee</span>
-                      <span className="font-bold text-base text-foreground">৳{doc.consultationFee}</span>
+                      <span className="font-bold text-base text-foreground">${doc.consultationFee}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-1">

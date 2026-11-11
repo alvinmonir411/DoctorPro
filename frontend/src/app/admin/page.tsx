@@ -29,8 +29,9 @@ import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
 export default function AdminDashboardPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const userRole = (user?.role || "ADMIN").toUpperCase();
+  const isDoctorScoped = userRole === "DOCTOR" || userRole === "DOCTOR_ASSISTANT";
 
   const [stats, setStats] = useState<any>(null);
   const [recentApps, setRecentApps] = useState<any[]>([]);
@@ -108,8 +109,10 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    loadDashboard();
-  }, [userRole, user?.doctorId]);
+    if (!authLoading && user) {
+      loadDashboard();
+    }
+  }, [authLoading, userRole, user?.doctorId]);
 
   const handleSaveDoctorSettings = async () => {
     if (!doctorProfile?.id) return;
@@ -229,14 +232,14 @@ export default function AdminDashboardPage() {
                     <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                   </span>
                   <h3 className="font-extrabold text-base text-foreground tracking-tight">
-                    Live Chamber Queue Desk (লাইভ সিরিয়াল ডেক্স)
+                    Live Clinic Queue Desk
                   </h3>
                   <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                    Active Chamber Control
+                    Active Queue Control
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Call next patient, advance serial, or pause chamber. Patients can track their serial and estimated wait time live on their phone!
+                  Call next patient, advance serial, or pause clinic. Patients can track their queue position and estimated wait time live on their phone!
                 </p>
               </div>
 
@@ -260,20 +263,20 @@ export default function AdminDashboardPage() {
               {/* Current Serial */}
               <div className="p-4 rounded-2xl bg-card border shadow-xs space-y-1">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                  Current Serving Token (বর্তমান রোগী)
+                  Current Serving Token
                 </span>
                 <p className="text-3xl sm:text-4xl font-black text-emerald-600">
                   #{doctorProfile?.currentServingSerial || 0}
                 </p>
                 <span className="text-[11px] text-muted-foreground block">
-                  {doctorProfile?.chamberStatus === "BREAK" ? "Chamber Paused / Break" : "Inside Consultation Room"}
+                  {doctorProfile?.chamberStatus === "BREAK" ? "Clinic Paused / Break" : "Inside Consultation Room"}
                 </span>
               </div>
 
               {/* Next In Line */}
               <div className="p-4 rounded-2xl bg-card border shadow-xs space-y-1">
                 <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                  Next In Line (পরবর্তী সিরিয়াল)
+                  Next In Line
                 </span>
                 <p className="text-3xl sm:text-4xl font-black text-primary">
                   #{(doctorProfile?.currentServingSerial || 0) + 1}
@@ -508,7 +511,7 @@ export default function AdminDashboardPage() {
                   <tr>
                     <th className="p-3">Patient</th>
                     <th className="p-3">Phone</th>
-                    <th className="p-3">Doctor</th>
+                    {!isDoctorScoped && <th className="p-3">Doctor</th>}
                     <th className="p-3">Date & Slot</th>
                     <th className="p-3">Status</th>
                     <th className="p-3 text-right">Actions</th>
@@ -521,9 +524,11 @@ export default function AdminDashboardPage() {
                         {app.patient?.name || "Patient"}
                       </td>
                       <td className="p-3 text-muted-foreground">{app.patient?.phone}</td>
-                      <td className="p-3 font-medium text-foreground">
-                        {app.doctor?.name || "Doctor"}
-                      </td>
+                      {!isDoctorScoped && (
+                        <td className="p-3 font-medium text-foreground">
+                          {app.doctor?.name || "Doctor"}
+                        </td>
+                      )}
                       <td className="p-3">
                         <span className="font-medium">
                           {new Date(app.date).toISOString().split("T")[0]}

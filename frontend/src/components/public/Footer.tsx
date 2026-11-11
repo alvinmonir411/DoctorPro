@@ -22,7 +22,7 @@ export function PublicFooter() {
               Premium medical practice and diagnostic center. Dedicated to delivering compassionate, evidence-based healthcare for individuals and families.
             </p>
             <div className="pt-2 text-xs text-slate-400">
-              <span className="text-sky-400 font-semibold">24/7 Support Hotline:</span> +880 1900-000000
+              <span className="text-sky-400 font-semibold">24/7 Support Hotline:</span> +1 (555) 911-0000
             </div>
           </div>
 
@@ -68,15 +68,15 @@ export function PublicFooter() {
           {/* Consulting Hours (Col 8-9) */}
           <div className="lg:col-span-2 space-y-4">
             <h4 className="font-bold text-xs tracking-wider uppercase text-sky-400">
-              Chamber Hours
+              Clinic Hours
             </h4>
             <div className="space-y-2 text-xs text-slate-300">
               <div>
-                <p className="font-semibold text-white">Sat - Thu</p>
-                <p className="text-slate-400">9:00 AM - 9:00 PM</p>
+                <p className="font-semibold text-white">Mon - Sat</p>
+                <p className="text-slate-400">8:00 AM - 8:00 PM</p>
               </div>
               <div className="pt-1">
-                <p className="font-semibold text-amber-400">Friday</p>
+                <p className="font-semibold text-amber-400">Sunday</p>
                 <p className="text-slate-400">Emergency & On-Call</p>
               </div>
             </div>
@@ -85,16 +85,16 @@ export function PublicFooter() {
           {/* Contact (Col 10-12) */}
           <div className="lg:col-span-3 space-y-4">
             <h4 className="font-bold text-xs tracking-wider uppercase text-sky-400">
-              Chamber Location
+              Clinic Location
             </h4>
             <div className="space-y-2.5 text-xs text-slate-300">
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-sky-400 shrink-0 mt-0.5" />
-                <span>House 42, Road 11, Dhanmondi, Dhaka, Bangladesh</span>
+                <span>450 Lexington Ave, Suite 1400, New York, NY 10017</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-sky-400 shrink-0" />
-                <span>Reception: +880 1700-000000</span>
+                <span>Reception: +1 (555) 234-5678</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-sky-400 shrink-0" />

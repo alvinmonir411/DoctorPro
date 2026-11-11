@@ -315,7 +315,7 @@ function LiveQueueContent() {
                 <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300 pt-2 border-t">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span>{doctor.chamberAddress || "DoctorPro Clinic, Dhaka"}</span>
+                    <span>{doctor.chamberAddress || "DoctorPro Medical Center, New York, NY"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="h-3.5 w-3.5 text-primary shrink-0" />

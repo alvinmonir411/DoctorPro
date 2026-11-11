@@ -119,7 +119,7 @@ export default function DoctorDetailPage() {
                   )}
                   {doctor.certificate && (
                     <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200 text-xs">
-                      <FileCheck className="h-3 w-3 mr-1 text-emerald-600" /> BMDC Verified
+                      <FileCheck className="h-3 w-3 mr-1 text-emerald-600" /> Board Verified
                     </Badge>
                   )}
                 </div>
@@ -162,7 +162,7 @@ export default function DoctorDetailPage() {
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-4 border-t">
                 <div>
                   <span className="text-xs text-muted-foreground">Consultation Fee</span>
-                  <p className="text-xl font-bold text-foreground">৳{doctor.consultationFee}</p>
+                  <p className="text-xl font-bold text-foreground">${doctor.consultationFee}</p>
                 </div>
                 <Button asChild size="lg" className="rounded-full bg-primary hover:bg-primary/90 px-8 ml-auto">
                   <Link href={`/appointment?doctorId=${doctor.id}`}>

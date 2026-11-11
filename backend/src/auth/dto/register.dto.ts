@@ -2,7 +2,7 @@ import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-vali
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'রহিম উদ্দিন' })
+  @ApiProperty({ example: 'John Doe' })
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -12,7 +12,7 @@ export class RegisterDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiPropertyOptional({ example: '01800000001' })
+  @ApiPropertyOptional({ example: '+1 (555) 234-5678' })
   @IsString()
   @IsOptional()
   phone?: string;

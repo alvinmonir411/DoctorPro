@@ -223,7 +223,7 @@ export default function HomePage() {
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">Certified</span>
-                    <strong className="text-slate-800 text-xs">BMDC Accredited</strong>
+                    <strong className="text-slate-800 text-xs">Board Certified</strong>
                   </div>
                 </div>
               </div>

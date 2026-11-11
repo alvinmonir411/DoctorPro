@@ -12,11 +12,11 @@ import { toast } from "sonner";
 export default function AdminSettingsPage() {
   const [clinicName, setClinicName] = useState("DoctorPro Medical Practice");
   const [tagline, setTagline] = useState("Quality Healthcare You Can Trust");
-  const [phone, setPhone] = useState("+880 1700-000000");
-  const [emergency, setEmergency] = useState("+880 1900-000000");
+  const [phone, setPhone] = useState("+1 (555) 234-5678");
+  const [emergency, setEmergency] = useState("+1 (555) 911-0000");
   const [email, setEmail] = useState("contact@doctorpro.com");
-  const [address, setAddress] = useState("House 42, Road 11, Dhanmondi, Dhaka, Bangladesh");
-  const [workingHours, setWorkingHours] = useState("Sat - Thu: 9:00 AM - 9:00 PM, Friday: Closed");
+  const [address, setAddress] = useState("450 Lexington Ave, Suite 1400, New York, NY 10017");
+  const [workingHours, setWorkingHours] = useState("Mon - Sat: 8:00 AM - 8:00 PM, Sunday: On-Call");
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);

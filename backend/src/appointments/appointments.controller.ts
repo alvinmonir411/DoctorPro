@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
@@ -57,23 +58,26 @@ export class AppointmentsController {
   @UseGuards(JwtAuthGuard)
   advanceLiveQueue(
     @Body() body: { doctorId: string; action: string; targetSerial?: number },
+    @Req() req: any,
   ) {
     return this.appointmentsService.advanceLiveQueue(
       body.doctorId,
       body.action,
       body.targetSerial,
+      req.user,
     );
   }
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(@Body() dto: CreateAppointmentDto) {
-    return this.appointmentsService.create(dto);
+  create(@Body() dto: CreateAppointmentDto, @Req() req: any) {
+    return this.appointmentsService.create(dto, req.user);
   }
 
   @Get()
   @UseGuards(JwtAuthGuard)
   findAll(
+    @Req() req: any,
     @Query('doctorId') doctorId?: string,
     @Query('patientId') patientId?: string,
     @Query('status') status?: string,
@@ -81,31 +85,34 @@ export class AppointmentsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.appointmentsService.findAll({
-      doctorId,
-      patientId,
-      status,
-      date,
-      startDate,
-      endDate,
-    });
+    return this.appointmentsService.findAll(
+      {
+        doctorId,
+        patientId,
+        status,
+        date,
+        startDate,
+        endDate,
+      },
+      req.user,
+    );
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string) {
-    return this.appointmentsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.appointmentsService.findOne(id, req.user);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() dto: UpdateAppointmentDto) {
-    return this.appointmentsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateAppointmentDto, @Req() req: any) {
+    return this.appointmentsService.update(id, dto, req.user);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
-    return this.appointmentsService.remove(id);
+  remove(@Param('id') id: string, @Req() req: any) {
+    return this.appointmentsService.remove(id, req.user);
   }
 }
