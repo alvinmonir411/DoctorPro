@@ -149,9 +149,9 @@ export default function AdminDoctorsPage() {
           : d
       )
     );
-    setSuccessMsg(
-      `Synchronized appointment window (${formatTime12h(appointmentStartTime)} – ${formatTime12h(appointmentEndTime)}) to all active visiting days!`
-    );
+    const syncText = `Synchronized appointment window (${formatTime12h(appointmentStartTime)} – ${formatTime12h(appointmentEndTime)}) to all active visiting days!`;
+    setSuccessMsg(syncText);
+    toast.success("Hours Synchronized", { description: syncText });
     setTimeout(() => setSuccessMsg(""), 3500);
   };
 
@@ -319,6 +319,14 @@ export default function AdminDoctorsPage() {
         return { ...d, enabled: true }; // All 7 days
       })
     );
+    toast.success("Visiting Days Updated", {
+      description:
+        preset === "SAT_THU"
+          ? "Applied Sat–Thu visiting schedule."
+          : preset === "MON_FRI"
+          ? "Applied Mon–Fri visiting schedule."
+          : "Enabled all 7 visiting days.",
+    });
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

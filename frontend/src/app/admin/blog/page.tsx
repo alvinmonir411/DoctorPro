@@ -71,6 +71,10 @@ export default function AdminBlogPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim() || !content.trim()) {
+      toast.error("Validation Error", { description: "Article title and content are required." });
+      return;
+    }
     setSaving(true);
     try {
       if (editingPost) {
@@ -108,7 +112,7 @@ export default function AdminBlogPage() {
     try {
       await blogApi.delete(id);
       await loadPosts();
-      toast.success("Article Deleted");
+      toast.success("Article Deleted", { description: "Health article has been removed." });
     } catch (err: any) {
       toast.error("Failed to Delete Article", {
         description: err?.message || "Failed to delete post",

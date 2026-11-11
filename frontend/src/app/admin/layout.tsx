@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
+import { toast } from "sonner";
 
 export default function AdminLayout({
   children,
@@ -129,6 +130,9 @@ export default function AdminLayout({
 
   const handleLogout = () => {
     logout();
+    toast.success("Signed Out", {
+      description: "You have been logged out of the portal.",
+    });
     router.push("/admin/login");
   };
 

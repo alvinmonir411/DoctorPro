@@ -9,11 +9,12 @@ function Toaster({ ...props }: ToasterProps) {
       richColors
       closeButton
       expand
-      className="toaster group"
+      className="toaster group pointer-events-auto"
+      style={{ zIndex: 9999 }}
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-2xl group-[.toaster]:px-4 group-[.toaster]:py-3 font-medium text-xs sm:text-sm",
+            "group toast pointer-events-auto group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-xl group-[.toaster]:rounded-2xl group-[.toaster]:px-4 group-[.toaster]:py-3 font-medium text-xs sm:text-sm",
           title: "font-bold text-xs sm:text-sm",
           description: "group-[.toast]:text-muted-foreground text-xs mt-0.5",
           actionButton:

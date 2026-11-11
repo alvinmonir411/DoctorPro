@@ -114,15 +114,21 @@ export default function AdminStaffPage() {
     setFormError("");
 
     if (!name.trim()) {
-      setFormError("Staff name is required.");
+      const msg = "Staff name is required.";
+      setFormError(msg);
+      toast.error("Missing Field", { description: msg });
       return;
     }
     if (!email.trim()) {
-      setFormError("Email address is required.");
+      const msg = "Email address is required.";
+      setFormError(msg);
+      toast.error("Missing Field", { description: msg });
       return;
     }
     if (!editingStaff && (!password || password.length < 6)) {
-      setFormError("Password must be at least 6 characters.");
+      const msg = "Password must be at least 6 characters.";
+      setFormError(msg);
+      toast.error("Invalid Password", { description: msg });
       return;
     }
 
@@ -206,7 +212,10 @@ export default function AdminStaffPage() {
     if (!confirm(`Are you sure you want to decline Dr. ${st.name}'s registration?`)) return;
     try {
       const docId = st.doctorId || st.doctor?.id;
-      if (!docId) return;
+      if (!docId) {
+        toast.error("Missing Link", { description: "No doctor profile ID linked to this account." });
+        return;
+      }
       await authApi.rejectDoctor(docId);
       const msg = `Dr. ${st.name}'s registration was declined.`;
       setSuccessMsg(msg);

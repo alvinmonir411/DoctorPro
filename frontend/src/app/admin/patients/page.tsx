@@ -48,7 +48,9 @@ export default function AdminPatientsPage() {
     try {
       await patientsApi.delete(id);
       await loadPatients();
-      toast.success("Patient Record Deleted");
+      toast.success("Patient Record Deleted", {
+        description: "The patient record has been removed.",
+      });
     } catch (err: any) {
       toast.error("Failed to Delete Patient", {
         description: err?.message || "Failed to delete patient",

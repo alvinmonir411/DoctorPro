@@ -83,6 +83,10 @@ export default function AdminServicesPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Validation Error", { description: "Service name is required." });
+      return;
+    }
     setSaving(true);
     try {
       if (editingService) {
@@ -118,7 +122,7 @@ export default function AdminServicesPage() {
     try {
       await servicesApi.delete(id);
       await loadData();
-      toast.success("Service Deleted");
+      toast.success("Service Deleted", { description: "Medical service has been removed." });
     } catch (err: any) {
       toast.error("Failed to Delete Service", {
         description: err?.message || "Failed to delete service",

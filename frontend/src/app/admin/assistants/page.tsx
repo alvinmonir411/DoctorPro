@@ -82,6 +82,13 @@ export default function DoctorAssistantsPage() {
     setSaving(true);
 
     try {
+      if (!name.trim() || !email.trim()) {
+        const msg = "Assistant name and email address are required.";
+        setFormError(msg);
+        toast.error("Validation Error", { description: msg });
+        setSaving(false);
+        return;
+      }
       if (password.length < 6) {
         const msg = "Password must be at least 6 characters.";
         setFormError(msg);

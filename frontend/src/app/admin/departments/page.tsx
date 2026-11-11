@@ -62,6 +62,10 @@ export default function AdminDepartmentsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Validation Error", { description: "Department name is required." });
+      return;
+    }
     setSaving(true);
     try {
       if (editingDept) {
@@ -87,7 +91,7 @@ export default function AdminDepartmentsPage() {
     try {
       await deptsApi.delete(id);
       await loadDepartments();
-      toast.success("Department Deleted");
+      toast.success("Department Deleted", { description: "Department has been removed." });
     } catch (err: any) {
       toast.error("Failed to Delete Department", {
         description: err?.message || "Failed to delete department",

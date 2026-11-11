@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { appointments as appsApi, doctors as docsApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
+import { toast } from "sonner";
 
 function LiveQueueContent() {
   const searchParams = useSearchParams();
@@ -58,8 +59,11 @@ function LiveQueueContent() {
             setSelectedDoctorId(res[0].id);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load doctors", err);
+        toast.error("Failed to Load Doctors", {
+          description: err?.message || "Could not load active doctors list.",
+        });
       }
     }
     loadDoctors();
@@ -82,7 +86,11 @@ function LiveQueueContent() {
       }
     } catch (err: any) {
       console.error("Live queue fetch error:", err);
-      setErrorMessage(err.message || "Failed to load live chamber queue data");
+      const exactMsg = err?.message || "Failed to load live chamber queue data";
+      setErrorMessage(exactMsg);
+      if (!isSilent) {
+        toast.error("Live Queue Error", { description: exactMsg });
+      }
     } finally {
       setLoading(false);
       if (!isSilent) setRefreshing(false);
