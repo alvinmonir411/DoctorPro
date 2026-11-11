@@ -23,6 +23,7 @@ import {
 import { doctors as doctorsApi, appointments as appsApi } from "@/lib/api";
 import { toast } from "sonner";
 import { NotifyTurnButton } from "@/components/public/NotifyTurnButton";
+import { DoctorSearchSelect } from "@/components/public/DoctorSearchSelect";
 
 function AppointmentContent() {
   const searchParams = useSearchParams();
@@ -55,9 +56,7 @@ function AppointmentContent() {
         const res = await doctorsApi.getAll("activeOnly=true");
         if (Array.isArray(res)) {
           setDoctorsList(res);
-          if (!selectedDoctorId && res.length > 0) {
-            setSelectedDoctorId(res[0].id);
-          }
+          setSelectedDoctorId((prev) => prev || preselectedDoctorId || (res.length > 0 ? res[0].id : ""));
         }
       } catch (err: any) {
         console.error("Failed to load doctors", err);
@@ -67,7 +66,7 @@ function AppointmentContent() {
       }
     }
     loadDoctors();
-  }, [selectedDoctorId]);
+  }, [preselectedDoctorId]);
 
   // Load available slots when doctor or date changes
   useEffect(() => {
@@ -325,18 +324,13 @@ function AppointmentContent() {
 
                 {doctorsList.length > 0 ? (
                   <div className="space-y-2">
-                    <Label className="text-xs">Choose Doctor</Label>
-                    <select
+                    <Label className="text-xs">Choose Doctor (Search by Name or Specialty)</Label>
+                    <DoctorSearchSelect
+                      doctors={doctorsList}
                       value={selectedDoctorId}
-                      onChange={(e) => setSelectedDoctorId(e.target.value)}
-                      className="w-full h-11 px-3 text-sm rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      {doctorsList.map((doc) => (
-                        <option key={doc.id} value={doc.id}>
-                          {doc.name} — {doc.specialization} ({doc.department?.name || "General"})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(docId) => setSelectedDoctorId(docId)}
+                      placeholder="Search doctor name, specialty, or department..."
+                    />
 
                     {selectedDoctor && (
                       <div className="p-3 rounded-xl bg-muted/40 border border-border/60 text-xs flex items-center justify-between mt-2">
