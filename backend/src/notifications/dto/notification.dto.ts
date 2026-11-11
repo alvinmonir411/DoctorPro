@@ -5,6 +5,7 @@ import {
   IsObject,
   IsEmail,
   IsIn,
+  IsBoolean,
 } from 'class-validator';
 
 export class SubscribePushDto {
@@ -62,6 +63,10 @@ export class UpdateEmailConfigDto {
 
   @IsOptional()
   @IsString()
+  replyToEmail?: string;
+
+  @IsOptional()
+  @IsString()
   smtpHost?: string;
 
   @IsOptional()
@@ -79,6 +84,10 @@ export class UpdateEmailConfigDto {
   @IsOptional()
   @IsString()
   smtpFrom?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  clearCustomConfig?: boolean;
 }
 
 export class TestEmailDto {

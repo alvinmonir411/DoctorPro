@@ -27,11 +27,13 @@ interface ResolvedEmailConfig {
   configuredMode: 'auto' | 'resend' | 'smtp';
   resendApiKey: string;
   resendFrom: string;
+  replyTo?: string;
   smtpHost: string;
   smtpPort: number;
   smtpUser: string;
   smtpPass: string;
   smtpFrom: string;
+  usingCustomDoctorConfig?: boolean;
 }
 
 @Injectable()
@@ -379,6 +381,8 @@ export class NotificationsService implements OnModuleInit {
         to: appointment.patient.email,
         subject,
         html,
+        doctorId: appointment.doctorId,
+        replyTo: appointment.doctor?.email || undefined,
       }).catch((err) =>
         this.logger.warn(`Booking email skipped/failed: ${err?.message}`),
       );
@@ -466,6 +470,8 @@ export class NotificationsService implements OnModuleInit {
         to: appointment.patient.email,
         subject: `${pushTitle} — DoctorPro`,
         html,
+        doctorId: appointment.doctorId,
+        replyTo: appointment.doctor?.email || undefined,
       }).catch((err) =>
         this.logger.warn(`Status email skipped/failed: ${err?.message}`),
       );
@@ -577,15 +583,17 @@ export class NotificationsService implements OnModuleInit {
         to: appt.patient.email,
         subject: `${info.title} — DoctorPro`,
         html,
+        doctorId: appt.doctorId,
+        replyTo: appt.doctor?.email || undefined,
       }).catch((err) =>
         this.logger.warn(`Reminder email failed: ${err?.message}`),
       );
     }
   }
 
-  // ─── Email Configuration (Admin-only) & Sender (Resend / SMTP) ───────
+  // ─── Email Configuration (Clinic Admin & Per-Doctor) & Sender ────────
 
-  private async resolveEmailConfig(): Promise<ResolvedEmailConfig> {
+  private async resolveClinicEmailConfig(): Promise<ResolvedEmailConfig> {
     const secretRows = await this.prisma.settings.findMany({
       where: { group: 'secret' },
     });
@@ -641,11 +649,92 @@ export class NotificationsService implements OnModuleInit {
       smtpUser,
       smtpPass,
       smtpFrom,
+      usingCustomDoctorConfig: false,
+    };
+  }
+
+  private async resolveEmailConfig(
+    doctorId?: string,
+  ): Promise<ResolvedEmailConfig> {
+    const clinicCfg = await this.resolveClinicEmailConfig();
+    if (!doctorId) return clinicCfg;
+
+    const [doctor, docCfg] = await Promise.all([
+      this.prisma.doctor.findUnique({
+        where: { id: doctorId },
+        select: { name: true, email: true },
+      }),
+      this.prisma.doctorEmailConfig.findUnique({
+        where: { doctorId },
+      }),
+    ]);
+
+    const replyTo =
+      docCfg?.replyToEmail?.trim() || doctor?.email?.trim() || undefined;
+
+    if (!docCfg) {
+      return {
+        ...clinicCfg,
+        replyTo,
+        usingCustomDoctorConfig: false,
+      };
+    }
+
+    const docMode = (docCfg.provider || 'auto') as 'auto' | 'resend' | 'smtp';
+    const docResendKey = docCfg.resendApiKey?.trim() || '';
+    const docSmtpUser = docCfg.smtpUser?.trim() || '';
+    const docSmtpPass = docCfg.smtpPass?.trim() || '';
+    const docSmtpHost =
+      docCfg.smtpHost?.trim() ||
+      (docSmtpUser.toLowerCase().endsWith('@gmail.com') ? 'smtp.gmail.com' : '');
+    const docSmtpPort = Number(
+      docCfg.smtpPort || (docSmtpHost === 'smtp.gmail.com' ? 465 : 587),
+    );
+
+    const hasDocResend = Boolean(docResendKey);
+    const hasDocSmtp = Boolean(docSmtpHost && docSmtpUser && docSmtpPass);
+
+    let useDocProvider: 'resend' | 'smtp' | 'none' = 'none';
+    if (docMode === 'resend' && hasDocResend) useDocProvider = 'resend';
+    else if (docMode === 'smtp' && hasDocSmtp) useDocProvider = 'smtp';
+    else if (docMode === 'auto') {
+      if (hasDocResend) useDocProvider = 'resend';
+      else if (hasDocSmtp) useDocProvider = 'smtp';
+    }
+
+    if (useDocProvider === 'none') {
+      return {
+        ...clinicCfg,
+        replyTo,
+        usingCustomDoctorConfig: false,
+      };
+    }
+
+    const defaultDocResendFrom = doctor?.name
+      ? `Dr. ${doctor.name} <onboarding@resend.dev>`
+      : clinicCfg.resendFrom;
+
+    return {
+      provider: useDocProvider,
+      configuredMode: docMode,
+      resendApiKey: docResendKey,
+      resendFrom: docCfg.resendFrom?.trim() || defaultDocResendFrom,
+      replyTo,
+      smtpHost: docSmtpHost,
+      smtpPort: docSmtpPort,
+      smtpUser: docSmtpUser,
+      smtpPass: docSmtpPass,
+      smtpFrom:
+        docCfg.smtpFrom?.trim() ||
+        (docSmtpUser
+          ? `Dr. ${doctor?.name || 'Doctor'} <${docSmtpUser}>`
+          : ''),
+      usingCustomDoctorConfig: true,
     };
   }
 
   async getAdminEmailConfig() {
-    const cfg = await this.resolveEmailConfig();
+    const cfg = await this.resolveClinicEmailConfig();
     return {
       activeProvider: cfg.provider,
       configuredMode: cfg.configuredMode,
@@ -697,8 +786,143 @@ export class NotificationsService implements OnModuleInit {
     return this.getAdminEmailConfig();
   }
 
+  async getDoctorEmailConfig(doctorId: string) {
+    const [doctor, docCfg, clinicCfg, resolved] = await Promise.all([
+      this.prisma.doctor.findUnique({
+        where: { id: doctorId },
+        select: { id: true, name: true, email: true },
+      }),
+      this.prisma.doctorEmailConfig.findUnique({
+        where: { doctorId },
+      }),
+      this.resolveClinicEmailConfig(),
+      this.resolveEmailConfig(doctorId),
+    ]);
+
+    return {
+      doctorId,
+      doctorName: doctor?.name || '',
+      doctorEmail: doctor?.email || '',
+      usingCustomConfig: Boolean(resolved.usingCustomDoctorConfig),
+      activeProvider: resolved.provider,
+      clinicFallbackProvider: clinicCfg.provider,
+      configuredMode: docCfg?.provider || 'auto',
+      hasResendKey: Boolean(docCfg?.resendApiKey),
+      resendKeyPreview: docCfg?.resendApiKey
+        ? `${docCfg.resendApiKey.slice(0, 6)}••••${docCfg.resendApiKey.slice(-4)}`
+        : '',
+      resendFrom: docCfg?.resendFrom || '',
+      replyToEmail: docCfg?.replyToEmail || doctor?.email || '',
+      smtpHost: docCfg?.smtpHost || 'smtp.gmail.com',
+      smtpPort: docCfg?.smtpPort || '465',
+      smtpUser: docCfg?.smtpUser || '',
+      hasSmtpPass: Boolean(docCfg?.smtpPass),
+      smtpFrom: docCfg?.smtpFrom || '',
+    };
+  }
+
+  async updateDoctorEmailConfig(doctorId: string, dto: UpdateEmailConfigDto) {
+    if (dto.clearCustomConfig) {
+      await this.prisma.doctorEmailConfig.deleteMany({ where: { doctorId } });
+      return this.getDoctorEmailConfig(doctorId);
+    }
+
+    const existing = await this.prisma.doctorEmailConfig.findUnique({
+      where: { doctorId },
+    });
+
+    const data: any = {
+      provider: dto.provider || existing?.provider || 'auto',
+      resendFrom:
+        dto.resendFrom !== undefined
+          ? dto.resendFrom.trim() || null
+          : existing?.resendFrom ?? null,
+      replyToEmail:
+        dto.replyToEmail !== undefined
+          ? dto.replyToEmail.trim() || null
+          : existing?.replyToEmail ?? null,
+      smtpHost:
+        dto.smtpHost !== undefined
+          ? dto.smtpHost.trim() || null
+          : existing?.smtpHost ?? null,
+      smtpPort:
+        dto.smtpPort !== undefined
+          ? dto.smtpPort.trim() || null
+          : existing?.smtpPort ?? null,
+      smtpUser:
+        dto.smtpUser !== undefined
+          ? dto.smtpUser.trim() || null
+          : existing?.smtpUser ?? null,
+      smtpFrom:
+        dto.smtpFrom !== undefined
+          ? dto.smtpFrom.trim() || null
+          : existing?.smtpFrom ?? null,
+    };
+
+    if (dto.resendApiKey && dto.resendApiKey.trim()) {
+      data.resendApiKey = dto.resendApiKey.trim();
+    }
+    if (dto.smtpPass && dto.smtpPass.trim()) {
+      data.smtpPass = dto.smtpPass.replace(/\s+/g, '');
+    }
+
+    await this.prisma.doctorEmailConfig.upsert({
+      where: { doctorId },
+      update: data,
+      create: { doctorId, ...data },
+    });
+
+    return this.getDoctorEmailConfig(doctorId);
+  }
+
+  async sendDoctorTestEmail(doctorId: string, to: string) {
+    const cfg = await this.resolveEmailConfig(doctorId);
+    if (cfg.provider === 'none') {
+      throw new BadRequestException(
+        'No email provider configured for your practice or clinic yet. Add your Resend API Key first.',
+      );
+    }
+
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+      select: { name: true, specialization: true, email: true },
+    });
+
+    const result = await this.sendEmail({
+      to,
+      doctorId,
+      replyTo: cfg.replyTo || doctor?.email || undefined,
+      subject: `DoctorPro Test Email — Dr. ${doctor?.name || 'Practice'}`,
+      html: this.buildAppointmentEmailHtml({
+        heading: 'Your Practice Email API Is Active!',
+        intro: cfg.usingCustomDoctorConfig
+          ? `Sent using your personal doctor ${cfg.provider.toUpperCase()} API configuration.`
+          : `Sent using the clinic fallback ${cfg.provider.toUpperCase()} configuration (no personal doctor key saved yet).`,
+        patientName: 'Test Recipient',
+        doctorName: doctor?.name ? `Dr. ${doctor.name}` : 'DoctorPro Practice',
+        specialization: doctor?.specialization || 'Doctor Portal Verification',
+        dateStr: this.formatDate(new Date()),
+        timeSlot: '09:00 - 09:30',
+        serialNumber: 1,
+        status: 'CONFIRMED',
+        liveQueueUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/live-queue?doctorId=${doctorId}`,
+      }),
+    });
+
+    if (!result.sent) {
+      throw new BadRequestException(
+        result.error || 'Failed to send doctor test email.',
+      );
+    }
+
+    return {
+      ...result,
+      usedCustomDoctorConfig: Boolean(cfg.usingCustomDoctorConfig),
+    };
+  }
+
   async sendTestEmail(to: string) {
-    const cfg = await this.resolveEmailConfig();
+    const cfg = await this.resolveClinicEmailConfig();
     if (cfg.provider === 'none') {
       throw new BadRequestException(
         'No email provider configured. Add your Resend API Key or Gmail App Password first.',
@@ -735,13 +959,15 @@ export class NotificationsService implements OnModuleInit {
     to: string;
     subject: string;
     html: string;
+    doctorId?: string;
+    replyTo?: string;
   }): Promise<{
     sent: boolean;
     provider: string;
     messageId?: string;
     error?: string;
   }> {
-    const cfg = await this.resolveEmailConfig();
+    const cfg = await this.resolveEmailConfig(params.doctorId);
     if (cfg.provider === 'none') {
       return {
         sent: false,
@@ -750,20 +976,27 @@ export class NotificationsService implements OnModuleInit {
       };
     }
 
+    const replyToAddress = params.replyTo || cfg.replyTo;
+
     if (cfg.provider === 'resend') {
       try {
+        const bodyPayload: any = {
+          from: cfg.resendFrom,
+          to: [params.to],
+          subject: params.subject,
+          html: params.html,
+        };
+        if (replyToAddress) {
+          bodyPayload.reply_to = replyToAddress;
+        }
+
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${cfg.resendApiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            from: cfg.resendFrom,
-            to: [params.to],
-            subject: params.subject,
-            html: params.html,
-          }),
+          body: JSON.stringify(bodyPayload),
           signal: AbortSignal.timeout(15000),
         });
 
@@ -772,9 +1005,7 @@ export class NotificationsService implements OnModuleInit {
           return {
             sent: false,
             provider: 'resend',
-            error:
-              data?.message ||
-              `Resend returned HTTP ${res.status}`,
+            error: data?.message || `Resend returned HTTP ${res.status}`,
           };
         }
         return {
@@ -806,6 +1037,7 @@ export class NotificationsService implements OnModuleInit {
       const info = await transporter.sendMail({
         from: cfg.smtpFrom || cfg.smtpUser,
         to: params.to,
+        ...(replyToAddress ? { replyTo: replyToAddress } : {}),
         subject: params.subject,
         html: params.html,
       });

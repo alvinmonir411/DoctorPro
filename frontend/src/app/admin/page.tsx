@@ -23,11 +23,23 @@ import {
   Volume2,
   ExternalLink,
   Radio,
+  Mail,
+  Send,
+  KeyRound,
+  RotateCcw,
 } from "lucide-react";
-import { dashboard as dashApi, appointments as appsApi, doctors as doctorsApi } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  dashboard as dashApi,
+  appointments as appsApi,
+  doctors as doctorsApi,
+  notifications as notificationsApi,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { AppointmentStatusBadge } from "@/components/admin/appointment-status";
 import { toast } from "sonner";
+import { confirmActionToast } from "@/components/ui/toast";
 
 export default function AdminDashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -45,6 +57,23 @@ export default function AdminDashboardPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState("");
   const [advancingQueue, setAdvancingQueue] = useState(false);
+
+  // Per-Doctor Email / Resend API Configuration (DOCTOR ONLY)
+  const [docEmailProvider, setDocEmailProvider] = useState<"auto" | "resend" | "smtp">("auto");
+  const [docUsingCustomEmail, setDocUsingCustomEmail] = useState(false);
+  const [docActiveEmailProvider, setDocActiveEmailProvider] = useState("none");
+  const [docResendKey, setDocResendKey] = useState("");
+  const [docResendPreview, setDocResendPreview] = useState("");
+  const [docResendFrom, setDocResendFrom] = useState("");
+  const [docReplyTo, setDocReplyTo] = useState("");
+  const [docSmtpHost, setDocSmtpHost] = useState("smtp.gmail.com");
+  const [docSmtpPort, setDocSmtpPort] = useState("465");
+  const [docSmtpUser, setDocSmtpUser] = useState("");
+  const [docSmtpPass, setDocSmtpPass] = useState("");
+  const [docHasSmtpPass, setDocHasSmtpPass] = useState(false);
+  const [savingDocEmail, setSavingDocEmail] = useState(false);
+  const [docTestEmailTo, setDocTestEmailTo] = useState("");
+  const [sendingDocTest, setSendingDocTest] = useState(false);
 
   const loadDashboard = async () => {
     try {
@@ -70,6 +99,25 @@ export default function AdminDashboardPage() {
           setDoctorProfile(doc);
           setSlotDuration(doc.slotDuration || 30);
           setAutoApprove(Boolean(doc.autoApprove));
+        }
+      }
+
+      if (userRole === "DOCTOR") {
+        const myEmailCfg = await notificationsApi.getMyEmailConfig().catch(() => null);
+        if (myEmailCfg) {
+          setDocEmailProvider((myEmailCfg.configuredMode as any) || "auto");
+          setDocUsingCustomEmail(Boolean(myEmailCfg.usingCustomConfig));
+          setDocActiveEmailProvider(myEmailCfg.activeProvider || "none");
+          setDocResendPreview(myEmailCfg.resendKeyPreview || "");
+          setDocResendFrom(myEmailCfg.resendFrom || "");
+          setDocReplyTo(myEmailCfg.replyToEmail || user?.email || "");
+          if (myEmailCfg.smtpHost) setDocSmtpHost(myEmailCfg.smtpHost);
+          if (myEmailCfg.smtpPort) setDocSmtpPort(myEmailCfg.smtpPort);
+          if (myEmailCfg.smtpUser) setDocSmtpUser(myEmailCfg.smtpUser);
+          setDocHasSmtpPass(Boolean(myEmailCfg.hasSmtpPass));
+          if (!docTestEmailTo && (myEmailCfg.replyToEmail || user?.email)) {
+            setDocTestEmailTo(myEmailCfg.replyToEmail || user?.email || "");
+          }
         }
       }
     } catch (err: any) {
@@ -139,6 +187,94 @@ export default function AdminDashboardPage() {
       });
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleSaveDoctorEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDocEmail(true);
+    try {
+      const updated: any = await notificationsApi.updateMyEmailConfig({
+        provider: docEmailProvider,
+        resendApiKey: docResendKey.trim() || undefined,
+        resendFrom: docResendFrom.trim() || undefined,
+        replyToEmail: docReplyTo.trim() || undefined,
+        smtpHost: docSmtpHost.trim() || undefined,
+        smtpPort: docSmtpPort.trim() || undefined,
+        smtpUser: docSmtpUser.trim() || undefined,
+        smtpPass: docSmtpPass.trim() || undefined,
+      });
+      setDocUsingCustomEmail(Boolean(updated?.usingCustomConfig));
+      setDocActiveEmailProvider(updated?.activeProvider || "none");
+      setDocResendPreview(updated?.resendKeyPreview || "");
+      setDocHasSmtpPass(Boolean(updated?.hasSmtpPass));
+      setDocResendKey("");
+      setDocSmtpPass("");
+      toast.success("Your Email API Saved!", {
+        description: updated?.usingCustomConfig
+          ? `Your appointments will now send emails using your personal ${String(updated.activeProvider).toUpperCase()} configuration.`
+          : "Configuration updated. Enter a Resend API key or SMTP credentials to use your own mailer.",
+      });
+    } catch (err: any) {
+      toast.error("Failed to Save Email API", {
+        description: err?.message || "Could not update your email API configuration.",
+      });
+    } finally {
+      setSavingDocEmail(false);
+    }
+  };
+
+  const handleResetDoctorEmail = async () => {
+    const confirmed = await confirmActionToast({
+      title: "Revert to Clinic Default Mailer",
+      description: "Remove your custom doctor Resend/SMTP API key and fall back to the clinic default mailer?",
+      confirmLabel: "Reset",
+    });
+    if (!confirmed) return;
+
+    setSavingDocEmail(true);
+    try {
+      const updated: any = await notificationsApi.updateMyEmailConfig({
+        clearCustomConfig: true,
+      });
+      setDocUsingCustomEmail(false);
+      setDocActiveEmailProvider(updated?.activeProvider || "none");
+      setDocResendPreview("");
+      setDocResendFrom("");
+      setDocSmtpUser("");
+      setDocHasSmtpPass(false);
+      toast.success("Reverted to Clinic Default", {
+        description: "Your appointments now use the clinic default email configuration.",
+      });
+    } catch (err: any) {
+      toast.error("Reset Failed", {
+        description: err?.message || "Could not reset custom email configuration.",
+      });
+    } finally {
+      setSavingDocEmail(false);
+    }
+  };
+
+  const handleTestDoctorEmail = async () => {
+    const recipient = (docTestEmailTo || docReplyTo || user?.email || "").trim();
+    if (!recipient) {
+      toast.error("Recipient Required", {
+        description: "Enter an email address to send a test message.",
+      });
+      return;
+    }
+    setSendingDocTest(true);
+    try {
+      const res: any = await notificationsApi.sendMyTestEmail(recipient);
+      toast.success("Test Email Delivered!", {
+        description: `Sent via ${res?.usedCustomDoctorConfig ? "your personal" : "clinic default"} ${String(res?.provider || "mailer").toUpperCase()} API to ${recipient}.`,
+      });
+    } catch (err: any) {
+      toast.error("Test Email Failed", {
+        description: err?.message || "Could not deliver test email.",
+      });
+    } finally {
+      setSendingDocTest(false);
     }
   };
 
@@ -402,6 +538,194 @@ export default function AdminDashboardPage() {
                 )}
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Personal Resend / Email API Configuration (DOCTOR ONLY) */}
+      {userRole === "DOCTOR" && doctorProfile && (
+        <Card className="rounded-2xl border-sky-200 bg-sky-50/40 dark:bg-sky-950/15 shadow-xs">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sky-200/60 pb-3">
+              <div className="flex items-start gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+                  <Mail className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    My Email &amp; Resend API Configuration
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Add your own Resend API key so your patients receive confirmations, updates &amp; reminders through your own mailer
+                  </p>
+                </div>
+              </div>
+
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold shrink-0 ${
+                  docUsingCustomEmail
+                    ? "bg-emerald-100 text-emerald-800"
+                    : docActiveEmailProvider !== "none"
+                    ? "bg-sky-100 text-sky-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                <KeyRound className="h-3 w-3" />
+                {docUsingCustomEmail
+                  ? `Custom ${docActiveEmailProvider.toUpperCase()} Active`
+                  : docActiveEmailProvider !== "none"
+                  ? `Clinic Default (${docActiveEmailProvider.toUpperCase()})`
+                  : "Not Configured"}
+              </span>
+            </div>
+
+            <form onSubmit={handleSaveDoctorEmail} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3 p-4 rounded-xl bg-background border">
+                  <p className="text-xs font-bold text-foreground">
+                    Resend API Settings (3,000 free/mo)
+                  </p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">
+                      Your Resend API Key{" "}
+                      {docResendPreview ? `(Saved: ${docResendPreview})` : ""}
+                    </Label>
+                    <Input
+                      type="password"
+                      placeholder={
+                        docResendPreview
+                          ? "Leave blank to keep saved Resend key"
+                          : "re_xxxxxxxxxxxxxxxxxxxxxxxx"
+                      }
+                      value={docResendKey}
+                      onChange={(e) => setDocResendKey(e.target.value)}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Sender From Address (Optional)</Label>
+                    <Input
+                      placeholder={`Dr. ${doctorProfile?.name || "Doctor"} <onboarding@resend.dev>`}
+                      value={docResendFrom}
+                      onChange={(e) => setDocResendFrom(e.target.value)}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Without a verified custom domain on Resend, keep{" "}
+                      <code>onboarding@resend.dev</code> (sends to your Resend account email) or use a custom domain you verified in Resend.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 p-4 rounded-xl bg-background border">
+                  <p className="text-xs font-bold text-foreground">
+                    Doctor Reply-To &amp; Optional Gmail SMTP
+                  </p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Patient Reply-To Email</Label>
+                    <Input
+                      type="email"
+                      placeholder={doctorProfile?.email || user?.email || "doctor@gmail.com"}
+                      value={docReplyTo}
+                      onChange={(e) => setDocReplyTo(e.target.value)}
+                      className="rounded-xl h-10 text-xs"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Mailer Mode</Label>
+                      <select
+                        value={docEmailProvider}
+                        onChange={(e) => setDocEmailProvider(e.target.value as any)}
+                        className="w-full h-9 px-2.5 text-xs rounded-xl border bg-background font-medium"
+                      >
+                        <option value="auto">Auto (Prefer Resend)</option>
+                        <option value="resend">Resend API Only</option>
+                        <option value="smtp">Gmail / Custom SMTP</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">SMTP Gmail (Optional)</Label>
+                      <Input
+                        type="email"
+                        placeholder="you@gmail.com"
+                        value={docSmtpUser}
+                        onChange={(e) => setDocSmtpUser(e.target.value)}
+                        className="rounded-xl h-9 text-xs"
+                      />
+                    </div>
+                  </div>
+                  {docEmailProvider === "smtp" || docSmtpUser ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <Input
+                        type="password"
+                        placeholder={docHasSmtpPass ? "SMTP Pass Saved" : "App Password"}
+                        value={docSmtpPass}
+                        onChange={(e) => setDocSmtpPass(e.target.value)}
+                        className="rounded-xl h-9 text-xs sm:col-span-2"
+                      />
+                      <Input
+                        placeholder="465"
+                        value={docSmtpPort}
+                        onChange={(e) => setDocSmtpPort(e.target.value)}
+                        className="rounded-xl h-9 text-xs"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                <div className="flex items-center gap-2 flex-1 max-w-md">
+                  <Input
+                    type="email"
+                    placeholder={docReplyTo || user?.email || "test@example.com"}
+                    value={docTestEmailTo}
+                    onChange={(e) => setDocTestEmailTo(e.target.value)}
+                    className="rounded-xl h-10 text-xs bg-background"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={sendingDocTest}
+                    onClick={handleTestDoctorEmail}
+                    className="rounded-xl h-10 text-xs shrink-0 bg-background"
+                  >
+                    <Send className="mr-1.5 h-3.5 w-3.5" />
+                    {sendingDocTest ? "Sending..." : "Send Test Email"}
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {docUsingCustomEmail && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={savingDocEmail}
+                      onClick={handleResetDoctorEmail}
+                      className="rounded-xl h-10 text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset to Default
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    disabled={savingDocEmail}
+                    className="bg-sky-600 hover:bg-sky-700 text-white rounded-xl h-10 px-5 text-xs font-semibold"
+                  >
+                    {savingDocEmail ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-1.5 h-3.5 w-3.5" /> Save My Email API
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </form>
           </CardContent>
         </Card>
       )}

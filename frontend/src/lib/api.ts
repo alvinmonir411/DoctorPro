@@ -438,6 +438,21 @@ export const notifications = {
   updateEmailConfig: (data: unknown) => put<any>("/notifications/email-config", data),
 
   sendTestEmail: (to: string) => post<any>("/notifications/test-email", { to }),
+
+  getMyEmailConfig: (doctorId?: string) =>
+    get<any>(`/notifications/my-email-config${doctorId ? `?doctorId=${encodeURIComponent(doctorId)}` : ""}`),
+
+  updateMyEmailConfig: (data: unknown, doctorId?: string) =>
+    put<any>(
+      `/notifications/my-email-config${doctorId ? `?doctorId=${encodeURIComponent(doctorId)}` : ""}`,
+      data
+    ),
+
+  sendMyTestEmail: (to: string, doctorId?: string) =>
+    post<any>(
+      `/notifications/my-test-email${doctorId ? `?doctorId=${encodeURIComponent(doctorId)}` : ""}`,
+      { to }
+    ),
 };
 
 // ---------------------------------------------------------------------------
