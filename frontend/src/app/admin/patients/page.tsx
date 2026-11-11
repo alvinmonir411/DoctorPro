@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Search, Phone, Mail, MapPin, Calendar, Trash2 } from "lucide-react";
 import { patients as patientsApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function AdminPatientsPage() {
   const [patientsList, setPatientsList] = useState<any[]>([]);
@@ -19,8 +20,11 @@ export default function AdminPatientsPage() {
       if (Array.isArray(res)) {
         setPatientsList(res);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load patients", err);
+      toast.error("Failed to Load Patients", {
+        description: err?.message || "Could not fetch patient records.",
+      });
     } finally {
       setLoading(false);
     }
@@ -35,8 +39,11 @@ export default function AdminPatientsPage() {
     try {
       await patientsApi.delete(id);
       await loadPatients();
+      toast.success("Patient Record Deleted");
     } catch (err: any) {
-      alert(err.message || "Failed to delete patient");
+      toast.error("Failed to Delete Patient", {
+        description: err?.message || "Failed to delete patient",
+      });
     }
   };
 

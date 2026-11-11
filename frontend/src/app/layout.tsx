@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/toast";
+import { AIChatbot } from "@/components/public/AIChatbot";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,7 +22,8 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
         <AuthProvider>
           {children}
-          <Toaster position="top-right" richColors />
+          <AIChatbot />
+          <Toaster position="top-center" richColors expand closeButton duration={5000} />
         </AuthProvider>
       </body>
     </html>

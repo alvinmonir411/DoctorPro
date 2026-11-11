@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Stethoscope, Lock, Mail, AlertCircle, ArrowLeft, Shield } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { toast } from "sonner";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -25,9 +26,15 @@ export default function AdminLoginPage() {
 
     try {
       await login(email, password);
+      toast.success("Signed In Successfully", {
+        description: "Welcome to DoctorPro Portal.",
+      });
       router.push("/admin");
     } catch (err: any) {
-      setError(err.message || "Invalid credentials. Please verify your email and password.");
+      const msg =
+        err?.message || "Invalid credentials. Please verify your email and password.";
+      setError(msg);
+      toast.error("Sign In Failed", { description: msg });
     } finally {
       setLoading(false);
     }

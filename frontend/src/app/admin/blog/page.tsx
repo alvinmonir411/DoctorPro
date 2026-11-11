@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { FileText, Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { blog as blogApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function AdminBlogPage() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -34,8 +35,11 @@ export default function AdminBlogPage() {
     try {
       const res = await blogApi.getAll("publishedOnly=false");
       if (Array.isArray(res)) setPosts(res);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load blog posts", err);
+      toast.error("Failed to Load Articles", {
+        description: err?.message || "Could not fetch health articles.",
+      });
     } finally {
       setLoading(false);
     }
@@ -77,6 +81,7 @@ export default function AdminBlogPage() {
           content,
           isPublished,
         });
+        toast.success("Article Updated", { description: `"${title}" updated.` });
       } else {
         await blogApi.create({
           title,
@@ -85,11 +90,14 @@ export default function AdminBlogPage() {
           content,
           isPublished,
         });
+        toast.success("Article Published", { description: `"${title}" created.` });
       }
       setModalOpen(false);
       await loadPosts();
     } catch (err: any) {
-      alert(err.message || "Failed to save post");
+      toast.error("Failed to Save Article", {
+        description: err?.message || "Failed to save post",
+      });
     } finally {
       setSaving(false);
     }
@@ -100,8 +108,11 @@ export default function AdminBlogPage() {
     try {
       await blogApi.delete(id);
       await loadPosts();
+      toast.success("Article Deleted");
     } catch (err: any) {
-      alert(err.message || "Failed to delete post");
+      toast.error("Failed to Delete Article", {
+        description: err?.message || "Failed to delete post",
+      });
     }
   };
 

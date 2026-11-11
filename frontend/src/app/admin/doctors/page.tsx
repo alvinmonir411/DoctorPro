@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { doctors as doctorsApi, departments as deptsApi, upload as uploadApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
+import { toast } from "sonner";
 
 const SLOT_OPTIONS = [
   { value: 10, label: "10 Min", desc: "Quick Visit" },
@@ -169,15 +170,26 @@ export default function AdminDoctorsPage() {
       ]);
       if (docs.status === "fulfilled" && Array.isArray(docs.value)) {
         setDoctorsList(docs.value);
+      } else if (docs.status === "rejected") {
+        toast.error("Failed to Load Doctors", {
+          description: docs.reason?.message || "Could not fetch doctor profiles.",
+        });
       }
       if (depts.status === "fulfilled" && Array.isArray(depts.value)) {
         setDepartmentsList(depts.value);
         if (depts.value.length > 0 && !departmentId) {
           setDepartmentId(depts.value[0].id);
         }
+      } else if (depts.status === "rejected") {
+        toast.error("Failed to Load Departments", {
+          description: depts.reason?.message || "Could not fetch departments.",
+        });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load doctor management data", err);
+      toast.error("Failed to Load Doctors", {
+        description: err?.message || "Could not load doctor data.",
+      });
     } finally {
       setLoading(false);
     }
@@ -299,11 +311,15 @@ export default function AdminDoctorsPage() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setFormError("Please select a valid image file (JPG, PNG, WEBP).");
+      const msg = "Please select a valid image file (JPG, PNG, WEBP).";
+      setFormError(msg);
+      toast.error("Invalid Image File", { description: msg });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setFormError("Profile picture must be under 5MB.");
+      const msg = "Profile picture must be under 5MB.";
+      setFormError(msg);
+      toast.error("File Too Large", { description: msg });
       return;
     }
 
@@ -312,9 +328,12 @@ export default function AdminDoctorsPage() {
     try {
       const res = await uploadApi.file(file);
       setImage(res.url);
+      toast.success("Doctor portrait uploaded to cloud storage!");
     } catch (err: any) {
       console.error("Image upload failed:", err);
-      setFormError(err.message || "Failed to upload doctor picture.");
+      const exactMsg = err?.message || "Failed to upload doctor picture.";
+      setFormError(exactMsg);
+      toast.error("Image Upload Failed", { description: exactMsg });
     } finally {
       setUploadingImage(false);
     }
@@ -325,11 +344,15 @@ export default function AdminDoctorsPage() {
     if (!file) return;
 
     if (!file.type.match(/(pdf|image)/i)) {
-      setFormError("Please upload a PDF or image file (PDF, JPG, PNG).");
+      const msg = "Please upload a PDF or image file (PDF, JPG, PNG).";
+      setFormError(msg);
+      toast.error("Invalid Document Type", { description: msg });
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setFormError("Certificate file must be under 10MB.");
+      const msg = "Certificate file must be under 10MB.";
+      setFormError(msg);
+      toast.error("File Too Large", { description: msg });
       return;
     }
 
@@ -339,9 +362,12 @@ export default function AdminDoctorsPage() {
       const res = await uploadApi.file(file);
       setCertificate(res.url);
       setCertificateName(file.name);
+      toast.success("Medical certificate uploaded successfully!");
     } catch (err: any) {
       console.error("Certificate upload failed:", err);
-      setFormError(err.message || "Failed to upload certificate.");
+      const exactMsg = err?.message || "Failed to upload certificate.";
+      setFormError(exactMsg);
+      toast.error("Certificate Upload Failed", { description: exactMsg });
     } finally {
       setUploadingCert(false);
     }
@@ -352,11 +378,15 @@ export default function AdminDoctorsPage() {
     setFormError("");
 
     if (!name.trim()) {
-      setFormError("Doctor full name is required.");
+      const msg = "Doctor full name is required.";
+      setFormError(msg);
+      toast.error("Missing Field", { description: msg });
       return;
     }
     if (!specialization.trim()) {
-      setFormError("Specialization is required (e.g. Cardiologist, General Physician).");
+      const msg = "Specialization is required (e.g. Cardiologist, General Physician).";
+      setFormError(msg);
+      toast.error("Missing Field", { description: msg });
       return;
     }
 
@@ -371,7 +401,9 @@ export default function AdminDoctorsPage() {
       }));
 
     if (activeSchedules.length === 0) {
-      setFormError("Please select at least one available day of the week for the doctor.");
+      const msg = "Please select at least one available day of the week for the doctor.";
+      setFormError(msg);
+      toast.error("Schedule Required", { description: msg });
       return;
     }
 
@@ -409,10 +441,14 @@ export default function AdminDoctorsPage() {
 
       if (editingDoctor) {
         await doctorsApi.update(editingDoctor.id, payload);
-        setSuccessMsg("Doctor profile & weekly schedule updated successfully!");
+        const msg = "Doctor profile & weekly schedule updated successfully!";
+        setSuccessMsg(msg);
+        toast.success("Doctor Updated", { description: msg });
       } else {
         await doctorsApi.create(payload);
-        setSuccessMsg("New doctor & schedule added successfully!");
+        const msg = "New doctor & schedule added successfully!";
+        setSuccessMsg(msg);
+        toast.success("Doctor Added", { description: msg });
       }
 
       setModalOpen(false);
@@ -420,7 +456,9 @@ export default function AdminDoctorsPage() {
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err: any) {
       console.error("Save doctor error:", err);
-      setFormError(err.message || "Failed to save doctor. Please check all required fields.");
+      const exactProblem = err?.message || "Failed to save doctor. Please check all required fields.";
+      setFormError(exactProblem);
+      toast.error("Failed to Save Doctor", { description: exactProblem });
     } finally {
       setSaving(false);
     }
@@ -432,9 +470,12 @@ export default function AdminDoctorsPage() {
       await doctorsApi.delete(id);
       await loadData();
       setSuccessMsg("Doctor deleted successfully.");
+      toast.success("Doctor Deleted", { description: "Doctor profile has been removed." });
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err: any) {
-      alert(err.message || "Failed to delete doctor");
+      toast.error("Failed to Delete Doctor", {
+        description: err?.message || "Doctor could not be deleted.",
+      });
     }
   };
 
@@ -442,8 +483,11 @@ export default function AdminDoctorsPage() {
     try {
       await doctorsApi.update(doc.id, { isActive: !doc.isActive });
       await loadData();
-    } catch (err) {
-      console.error(err);
+      toast.success(`${doc.name} is now ${!doc.isActive ? "Active" : "Inactive"}`);
+    } catch (err: any) {
+      toast.error("Status Update Failed", {
+        description: err?.message || "Unable to change doctor active status.",
+      });
     }
   };
 
@@ -451,10 +495,14 @@ export default function AdminDoctorsPage() {
     try {
       await doctorsApi.update(doc.id, { autoApprove: !doc.autoApprove });
       await loadData();
-      setSuccessMsg(`Approval mode updated for ${doc.name}`);
+      const msg = `Approval mode updated for ${doc.name}`;
+      setSuccessMsg(msg);
+      toast.success("Booking Rule Updated", { description: msg });
       setTimeout(() => setSuccessMsg(""), 3000);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      toast.error("Failed to Update Booking Rule", {
+        description: err?.message || "Could not toggle auto-approve mode.",
+      });
     }
   };
 

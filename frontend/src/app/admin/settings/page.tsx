@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Settings, Save, CheckCircle2 } from "lucide-react";
 import { settings as settingsApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function AdminSettingsPage() {
   const [clinicName, setClinicName] = useState("DoctorPro Medical Practice");
@@ -33,8 +34,11 @@ export default function AdminSettingsPage() {
           if (res.map.clinic_address) setAddress(res.map.clinic_address);
           if (res.map.working_hours) setWorkingHours(res.map.working_hours);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load settings", err);
+        toast.error("Failed to Load Settings", {
+          description: err?.message || "Could not fetch clinic settings.",
+        });
       }
     }
     loadSettings();
@@ -56,9 +60,14 @@ export default function AdminSettingsPage() {
         { key: "working_hours", value: workingHours, group: "general" },
       ]);
       setSavedSuccess(true);
+      toast.success("Settings Saved", {
+        description: "Clinic practice details updated successfully.",
+      });
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
-      alert(err.message || "Failed to update settings");
+      toast.error("Failed to Save Settings", {
+        description: err?.message || "Failed to update settings",
+      });
     } finally {
       setSaving(false);
     }

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { auth as authApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { toast } from "sonner";
 
 export default function DoctorAssistantsPage() {
   const { user } = useAuth();
@@ -52,8 +53,11 @@ export default function DoctorAssistantsPage() {
       if (Array.isArray(res)) {
         setAssistants(res);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load doctor assistants", err);
+      toast.error("Failed to Load Assistants", {
+        description: err?.message || "Could not fetch assistant accounts.",
+      });
     } finally {
       setLoading(false);
     }
@@ -79,7 +83,9 @@ export default function DoctorAssistantsPage() {
 
     try {
       if (password.length < 6) {
-        setFormError("Password must be at least 6 characters.");
+        const msg = "Password must be at least 6 characters.";
+        setFormError(msg);
+        toast.error("Validation Error", { description: msg });
         setSaving(false);
         return;
       }
@@ -91,12 +97,16 @@ export default function DoctorAssistantsPage() {
         phone: phone.trim() || undefined,
       });
 
-      setSuccessMsg(`Assistant ${name} added successfully! They can now log in.`);
+      const msg = `Assistant ${name} added successfully! They can now log in.`;
+      setSuccessMsg(msg);
+      toast.success("Assistant Added", { description: msg });
       setTimeout(() => setSuccessMsg(""), 4000);
       setModalOpen(false);
       await loadAssistants();
     } catch (err: any) {
-      setFormError(err.message || "Failed to create assistant account.");
+      const exactProblem = err?.message || "Failed to create assistant account.";
+      setFormError(exactProblem);
+      toast.error("Failed to Create Assistant", { description: exactProblem });
     } finally {
       setSaving(false);
     }
@@ -109,9 +119,12 @@ export default function DoctorAssistantsPage() {
       await authApi.deleteMyAssistant(assistant.id);
       await loadAssistants();
       setSuccessMsg("Assistant account removed.");
+      toast.success("Assistant Removed", { description: `${assistant.name} has been removed.` });
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err: any) {
-      alert(err.message || "Failed to delete assistant.");
+      toast.error("Failed to Remove Assistant", {
+        description: err?.message || "Failed to delete assistant.",
+      });
     }
   };
 

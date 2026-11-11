@@ -30,6 +30,7 @@ import {
 import { staff as staffApi, doctors as doctorsApi, auth as authApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import { toast } from "sonner";
 
 export default function AdminStaffPage() {
   const { user: currentUser } = useAuth();
@@ -62,12 +63,19 @@ export default function AdminStaffPage() {
       ]);
       if (staffRes.status === "fulfilled" && Array.isArray(staffRes.value)) {
         setStaffList(staffRes.value);
+      } else if (staffRes.status === "rejected") {
+        toast.error("Failed to Load Staff", {
+          description: staffRes.reason?.message || "Could not fetch staff accounts.",
+        });
       }
       if (docsRes.status === "fulfilled" && Array.isArray(docsRes.value)) {
         setDoctorsList(docsRes.value);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load staff", err);
+      toast.error("Failed to Load Staff", {
+        description: err?.message || "Could not fetch staff list.",
+      });
     } finally {
       setLoading(false);
     }
@@ -135,10 +143,14 @@ export default function AdminStaffPage() {
 
       if (editingStaff) {
         await staffApi.update(editingStaff.id, payload);
-        setSuccessMsg("Staff account updated successfully!");
+        const msg = "Staff account updated successfully!";
+        setSuccessMsg(msg);
+        toast.success("Account Updated", { description: msg });
       } else {
         await staffApi.create(payload);
-        setSuccessMsg("New staff account created successfully!");
+        const msg = "New staff account created successfully!";
+        setSuccessMsg(msg);
+        toast.success("Account Created", { description: msg });
       }
 
       setModalOpen(false);
@@ -146,7 +158,9 @@ export default function AdminStaffPage() {
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err: any) {
       console.error("Failed to save staff:", err);
-      setFormError(err.message || "Failed to save staff account.");
+      const exactProblem = err?.message || "Failed to save staff account.";
+      setFormError(exactProblem);
+      toast.error("Failed to Save Account", { description: exactProblem });
     } finally {
       setSaving(false);
     }
@@ -154,7 +168,7 @@ export default function AdminStaffPage() {
 
   const handleDelete = async (st: any) => {
     if (st.email === "admin@doctorpro.com") {
-      alert("The primary administrator cannot be deleted.");
+      toast.error("Action Denied", { description: "The primary administrator cannot be deleted." });
       return;
     }
     if (!confirm(`Are you sure you want to delete ${st.name}'s account?`)) return;
@@ -163,9 +177,10 @@ export default function AdminStaffPage() {
       await staffApi.delete(st.id);
       await loadData();
       setSuccessMsg("Staff account deleted.");
+      toast.success("Account Deleted", { description: `${st.name}'s account was removed.` });
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (err: any) {
-      alert(err.message || "Failed to delete account");
+      toast.error("Failed to Delete Account", { description: err?.message || "Failed to delete account" });
     }
   };
 
@@ -173,15 +188,17 @@ export default function AdminStaffPage() {
     try {
       const docId = st.doctorId || st.doctor?.id;
       if (!docId) {
-        alert("No doctor profile ID linked to this account.");
+        toast.error("Missing Link", { description: "No doctor profile ID linked to this account." });
         return;
       }
       await authApi.approveDoctor(docId);
-      setSuccessMsg(`Dr. ${st.name} approved successfully! Their account is now active.`);
+      const msg = `Dr. ${st.name} approved successfully! Their account is now active.`;
+      setSuccessMsg(msg);
+      toast.success("Doctor Approved", { description: msg });
       setTimeout(() => setSuccessMsg(""), 4000);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to approve doctor.");
+      toast.error("Approval Failed", { description: err?.message || "Failed to approve doctor." });
     }
   };
 
@@ -191,11 +208,13 @@ export default function AdminStaffPage() {
       const docId = st.doctorId || st.doctor?.id;
       if (!docId) return;
       await authApi.rejectDoctor(docId);
-      setSuccessMsg(`Dr. ${st.name}'s registration was declined.`);
+      const msg = `Dr. ${st.name}'s registration was declined.`;
+      setSuccessMsg(msg);
+      toast.success("Doctor Registration Declined", { description: msg });
       setTimeout(() => setSuccessMsg(""), 4000);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to reject doctor.");
+      toast.error("Decline Failed", { description: err?.message || "Failed to decline doctor." });
     }
   };
 

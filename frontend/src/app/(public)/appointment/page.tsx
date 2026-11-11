@@ -21,6 +21,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { doctors as doctorsApi, appointments as appsApi } from "@/lib/api";
+import { toast } from "sonner";
 
 function AppointmentContent() {
   const searchParams = useSearchParams();
@@ -57,8 +58,11 @@ function AppointmentContent() {
             setSelectedDoctorId(res[0].id);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load doctors", err);
+        toast.error("Failed to Load Doctors", {
+          description: err?.message || "Could not load active specialists.",
+        });
       }
     }
     loadDoctors();
@@ -86,7 +90,10 @@ function AppointmentContent() {
       } catch (err: any) {
         console.error("Failed to load slots", err);
         setAvailableSlots([]);
-        setSlotMessage("Unable to load slots. You may pick a standard time slot.");
+        setSlotMessage(err?.message || "Unable to load slots. You may pick a standard time slot.");
+        toast.error("Schedule Check Issue", {
+          description: err?.message || "Unable to verify doctor schedule for this date.",
+        });
       } finally {
         setLoadingSlots(false);
       }
@@ -101,29 +108,39 @@ function AppointmentContent() {
     setErrorMessage("");
 
     if (!selectedDoctorId) {
-      setErrorMessage("Please select a doctor.");
+      const msg = "Please select a doctor.";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
     if (!selectedDate) {
-      setErrorMessage("Please pick an appointment date.");
+      const msg = "Please pick an appointment date.";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
     if (!selectedSlot) {
-      setErrorMessage("Please select a time slot.");
+      const msg = "Please select a time slot.";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
     if (!patientName.trim()) {
-      setErrorMessage("Please enter patient full name.");
+      const msg = "Please enter patient full name.";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
     if (!patientPhone.trim()) {
-      setErrorMessage("Please provide a valid phone number.");
+      const msg = "Please provide a valid phone number.";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await appsApi.bookPublic({
+      const res: any = await appsApi.bookPublic({
         doctorId: selectedDoctorId,
         date: selectedDate,
         timeSlot: selectedSlot,
@@ -133,8 +150,19 @@ function AppointmentContent() {
         notes: notes || undefined,
       });
       setSuccessBooking(res);
+      toast.success(
+        res?.status === "CONFIRMED"
+          ? "Appointment Confirmed!"
+          : "Appointment Request Recorded!",
+        {
+          description: `Serial #${res?.serialNumber || 1} booked for ${selectedDate} (${selectedSlot}).`,
+        }
+      );
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to book appointment. Please try again.");
+      const exactProblem =
+        err?.message || "Failed to book appointment. Please try again.";
+      setErrorMessage(exactProblem);
+      toast.error("Booking Failed", { description: exactProblem });
     } finally {
       setSubmitting(false);
     }

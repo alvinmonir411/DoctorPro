@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Building2, Plus, Pencil, Trash2 } from "lucide-react";
 import { departments as deptsApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function AdminDepartmentsPage() {
   const [departmentsList, setDepartmentsList] = useState<any[]>([]);
@@ -31,8 +32,11 @@ export default function AdminDepartmentsPage() {
     try {
       const res = await deptsApi.getAll();
       if (Array.isArray(res)) setDepartmentsList(res);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load departments", err);
+      toast.error("Failed to Load Departments", {
+        description: err?.message || "Could not fetch medical departments.",
+      });
     } finally {
       setLoading(false);
     }
@@ -62,13 +66,17 @@ export default function AdminDepartmentsPage() {
     try {
       if (editingDept) {
         await deptsApi.update(editingDept.id, { name, description });
+        toast.success("Department Updated", { description: `${name} was updated successfully.` });
       } else {
         await deptsApi.create({ name, description });
+        toast.success("Department Created", { description: `${name} was added.` });
       }
       setModalOpen(false);
       await loadDepartments();
     } catch (err: any) {
-      alert(err.message || "Failed to save department");
+      toast.error("Failed to Save Department", {
+        description: err?.message || "Failed to save department",
+      });
     } finally {
       setSaving(false);
     }
@@ -79,8 +87,11 @@ export default function AdminDepartmentsPage() {
     try {
       await deptsApi.delete(id);
       await loadDepartments();
+      toast.success("Department Deleted");
     } catch (err: any) {
-      alert(err.message || "Failed to delete department");
+      toast.error("Failed to Delete Department", {
+        description: err?.message || "Failed to delete department",
+      });
     }
   };
 

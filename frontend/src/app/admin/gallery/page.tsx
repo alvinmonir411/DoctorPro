@@ -11,8 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Image as ImageIcon, Plus, Trash2 } from "lucide-react";
-import { gallery as galleryApi } from "@/lib/api";
+import { Image as ImageIcon, Plus, Trash2, Upload, Loader2 } from "lucide-react";
+import { gallery as galleryApi, upload as uploadApi } from "@/lib/api";
+import { getMediaUrl } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function AdminGalleryPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -23,13 +25,17 @@ export default function AdminGalleryPage() {
   const [image, setImage] = useState("");
   const [category, setCategory] = useState("Chamber");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const loadGallery = async () => {
     try {
       const res = await galleryApi.getAll();
       if (Array.isArray(res)) setItems(res);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load gallery items", err);
+      toast.error("Failed to Load Gallery", {
+        description: err?.message || "Could not load gallery photos.",
+      });
     } finally {
       setLoading(false);
     }
@@ -46,15 +52,55 @@ export default function AdminGalleryPage() {
     setModalOpen(true);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Invalid Image File", {
+        description: "Please upload a valid JPG, PNG, or WEBP image.",
+      });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File Too Large", {
+        description: "Image size must be under 5MB.",
+      });
+      return;
+    }
+    setUploading(true);
+    try {
+      const res = await uploadApi.file(file);
+      if (res?.url) {
+        setImage(res.url);
+        toast.success("Photo uploaded successfully!");
+      }
+    } catch (err: any) {
+      toast.error("Image Upload Failed", {
+        description: err?.message || "Failed to upload photo to storage.",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim() || !image.trim()) {
+      toast.error("Validation Error", {
+        description: "Please provide both a photo title and an image.",
+      });
+      return;
+    }
     setSaving(true);
     try {
       await galleryApi.create({ title, image, category });
+      toast.success("Photo Added", { description: `"${title}" added to clinic gallery.` });
       setModalOpen(false);
       await loadGallery();
     } catch (err: any) {
-      alert(err.message || "Failed to add image");
+      toast.error("Failed to Add Photo", {
+        description: err?.message || "Failed to add image",
+      });
     } finally {
       setSaving(false);
     }
@@ -64,9 +110,12 @@ export default function AdminGalleryPage() {
     if (!confirm("Are you sure you want to delete this photo?")) return;
     try {
       await galleryApi.delete(id);
+      toast.success("Photo Deleted", { description: "Gallery item removed." });
       await loadGallery();
     } catch (err: any) {
-      alert(err.message || "Failed to delete photo");
+      toast.error("Failed to Delete Photo", {
+        description: err?.message || "Failed to delete photo",
+      });
     }
   };
 
@@ -93,7 +142,7 @@ export default function AdminGalleryPage() {
                 <div key={item.id} className="relative group rounded-2xl border overflow-hidden bg-card">
                   <div className="h-40 bg-muted relative">
                     <img
-                      src={item.image}
+                      src={getMediaUrl(item.image)}
                       alt={item.title}
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -150,13 +199,33 @@ export default function AdminGalleryPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs">Image URL *</Label>
+              <Label className="text-xs">Upload Photo or Paste URL *</Label>
+              <div className="flex items-center gap-2">
+                <label className="flex-1 flex items-center justify-center gap-2 h-10 px-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 text-xs font-semibold text-primary cursor-pointer transition-colors">
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-3.5 w-3.5" /> Upload Image (Cloudinary)
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={handleImageUpload}
+                  />
+                </label>
+              </div>
               <Input
                 placeholder="https://... or /uploads/..."
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
                 required
-                className="rounded-xl h-10"
+                className="rounded-xl h-10 text-xs"
               />
             </div>
 

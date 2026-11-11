@@ -21,16 +21,24 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
-  const res = await fetch(url, {
-    headers: getAuthHeaders(),
-    ...options,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: getAuthHeaders(),
+      ...options,
+    });
+  } catch (netErr: any) {
+    throw new Error(
+      `Network error: Cannot reach DoctorPro server (${netErr?.message || "Connection refused"})`
+    );
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const message =
-      body.message || body.error || `Request failed (${res.status})`;
-    throw new Error(Array.isArray(message) ? message.join(", ") : message);
+    const rawMsg =
+      body.message || body.error || `Request failed with HTTP ${res.status}`;
+    const exactMessage = Array.isArray(rawMsg) ? rawMsg.join(" • ") : String(rawMsg);
+    throw new Error(exactMessage);
   }
 
   // 204 No Content
@@ -304,20 +312,75 @@ export const upload = {
       }
     }
 
-    const res = await fetch(`${API_BASE}/upload`, {
-      method: "POST",
-      headers,
-      body: formData,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/upload`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+    } catch (netErr: any) {
+      throw new Error(
+        `Network error during upload: ${netErr?.message || "Connection refused"}`
+      );
+    }
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new Error(body.message || "Upload failed");
+      const rawMsg = body.message || body.error || `Upload failed (${res.status})`;
+      throw new Error(Array.isArray(rawMsg) ? rawMsg.join(" • ") : String(rawMsg));
     }
 
     const json = await res.json();
     return json.data || json;
   },
+
+  publicFile: async (
+    file: File
+  ): Promise<{ url: string; filename?: string; originalName?: string; size?: number }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}/upload/public`, {
+        method: "POST",
+        body: formData,
+      });
+    } catch (netErr: any) {
+      throw new Error(
+        `Network error during upload: ${netErr?.message || "Connection refused"}`
+      );
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const rawMsg =
+        body.message || body.error || `Public upload failed (${res.status})`;
+      throw new Error(Array.isArray(rawMsg) ? rawMsg.join(" • ") : String(rawMsg));
+    }
+
+    const json = await res.json();
+    return json.data || json;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// AI Health Assistant
+// ---------------------------------------------------------------------------
+
+export const ai = {
+  chat: (data: {
+    message: string;
+    history?: { role: "user" | "model"; text: string }[];
+  }) =>
+    post<{
+      reply: string;
+      recommendedDoctors: any[];
+      recommendedDepartment: string | null;
+      urgencyLevel: "NORMAL" | "MODERATE" | "URGENT";
+      modelUsed?: string;
+    }>("/ai/chat", data),
 };
 
 // ---------------------------------------------------------------------------
@@ -349,6 +412,7 @@ const api = {
   testimonials,
   dashboard,
   upload,
+  ai,
 };
 
 export default api;

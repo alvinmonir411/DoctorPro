@@ -17,6 +17,7 @@ import {
   Phone,
 } from "lucide-react";
 import { appointments as appsApi, doctors as doctorsApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function AdminAppointmentsPage() {
   const [appointmentsList, setAppointmentsList] = useState<any[]>([]);
@@ -34,12 +35,23 @@ export default function AdminAppointmentsPage() {
       ]);
       if (apps.status === "fulfilled" && Array.isArray(apps.value)) {
         setAppointmentsList(apps.value);
+      } else if (apps.status === "rejected") {
+        toast.error("Failed to Load Appointments", {
+          description: apps.reason?.message || "Could not fetch appointments.",
+        });
       }
       if (docs.status === "fulfilled" && Array.isArray(docs.value)) {
         setDoctorsList(docs.value);
+      } else if (docs.status === "rejected") {
+        toast.error("Failed to Load Doctors", {
+          description: docs.reason?.message || "Could not fetch doctors list.",
+        });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load appointments", err);
+      toast.error("Failed to Load Appointments", {
+        description: err?.message || "Unable to fetch appointments.",
+      });
     } finally {
       setLoading(false);
     }
@@ -53,8 +65,13 @@ export default function AdminAppointmentsPage() {
     try {
       await appsApi.update(id, { status });
       await loadData();
-    } catch (err) {
-      console.error("Error updating appointment status", err);
+      toast.success("Appointment Status Updated", {
+        description: `Appointment has been marked as ${status}.`,
+      });
+    } catch (err: any) {
+      toast.error("Failed to Update Status", {
+        description: err?.message || "Unable to update appointment status.",
+      });
     }
   };
 
@@ -63,8 +80,13 @@ export default function AdminAppointmentsPage() {
     try {
       await appsApi.delete(id);
       await loadData();
+      toast.success("Appointment Deleted", {
+        description: "The appointment record has been removed.",
+      });
     } catch (err: any) {
-      alert(err.message || "Failed to delete appointment");
+      toast.error("Failed to Delete Appointment", {
+        description: err?.message || "Failed to delete appointment",
+      });
     }
   };
 

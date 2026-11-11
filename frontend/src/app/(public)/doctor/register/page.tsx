@@ -29,6 +29,7 @@ import {
   Award,
 } from "lucide-react";
 import { auth as authApi, departments as deptsApi, upload as uploadApi } from "@/lib/api";
+import { toast } from "sonner";
 import { getMediaUrl } from "@/lib/utils";
 
 const SLOT_OPTIONS = [
@@ -98,12 +99,15 @@ export default function DoctorRegisterPage() {
     if (!file) return;
     setUploadingImage(true);
     try {
-      const res = await uploadApi.file(file);
+      const res = await uploadApi.publicFile(file);
       if (res?.url) {
         setImage(res.url);
+        toast.success("Doctor portrait uploaded successfully!");
       }
     } catch (err: any) {
-      alert("Failed to upload image: " + err.message);
+      toast.error("Image Upload Failed", {
+        description: err?.message || "Could not upload profile photo.",
+      });
     } finally {
       setUploadingImage(false);
     }
@@ -114,12 +118,15 @@ export default function DoctorRegisterPage() {
     if (!file) return;
     setUploadingCert(true);
     try {
-      const res = await uploadApi.file(file);
+      const res = await uploadApi.publicFile(file);
       if (res?.url) {
         setCertificate(res.url);
+        toast.success("BMDC Certificate uploaded successfully!");
       }
     } catch (err: any) {
-      alert("Failed to upload certificate: " + err.message);
+      toast.error("Certificate Upload Failed", {
+        description: err?.message || "Could not upload BMDC certificate.",
+      });
     } finally {
       setUploadingCert(false);
     }
@@ -130,19 +137,27 @@ export default function DoctorRegisterPage() {
     setErrorMessage("");
 
     if (password !== confirmPassword) {
-      setErrorMessage("Passwords do not match. Please re-enter.");
+      const msg = "Passwords do not match. Please re-enter.";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
     if (password.length < 6) {
-      setErrorMessage("Password must be at least 6 characters.");
+      const msg = "Password must be at least 6 characters.";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
     if (!name.trim()) {
-      setErrorMessage("Doctor's full name is required.");
+      const msg = "Doctor's full name is required.";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
     if (!specialization.trim()) {
-      setErrorMessage("Specialization is required (e.g. Cardiologist).");
+      const msg = "Specialization is required (e.g. Cardiologist).";
+      setErrorMessage(msg);
+      toast.error("Validation Error", { description: msg });
       return;
     }
 
@@ -177,9 +192,14 @@ export default function DoctorRegisterPage() {
         specialization,
         slotDuration,
       });
+      toast.success("Doctor Application Submitted!", {
+        description: "Your profile is pending admin verification.",
+      });
       setIsSuccess(true);
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to register doctor. Please check your inputs.");
+      const exactProblem = err?.message || "Failed to register doctor. Please check your inputs.";
+      setErrorMessage(exactProblem);
+      toast.error("Registration Failed", { description: exactProblem });
     } finally {
       setSubmitting(false);
     }

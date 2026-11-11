@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { dashboard as dashApi, appointments as appsApi, doctors as doctorsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { toast } from "sonner";
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
@@ -69,8 +70,11 @@ export default function AdminDashboardPage() {
           setAutoApprove(Boolean(doc.autoApprove));
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Dashboard data load error", err);
+      toast.error("Failed to Load Dashboard", {
+        description: err?.message || "Could not load dashboard overview.",
+      });
     } finally {
       setLoading(false);
     }
@@ -83,9 +87,21 @@ export default function AdminDashboardPage() {
     try {
       await appsApi.advanceLiveQueue({ doctorId: docId, action });
       await loadDashboard();
+      toast.success("Chamber Queue Updated", {
+        description:
+          action === "NEXT"
+            ? "Called next patient in serial queue."
+            : action === "PREV"
+            ? "Moved back to previous serial."
+            : doctorProfile?.chamberStatus === "BREAK"
+            ? "Chamber resumed."
+            : "Chamber paused for break.",
+      });
     } catch (err: any) {
       console.error("Failed to advance queue", err);
-      alert(err.message || "Failed to update queue");
+      toast.error("Failed to Update Queue", {
+        description: err?.message || "Failed to update live chamber queue.",
+      });
     } finally {
       setAdvancingQueue(false);
     }
@@ -105,10 +121,18 @@ export default function AdminDashboardPage() {
         autoApprove: Boolean(autoApprove),
       });
       setSettingsSuccess("Practice settings updated successfully!");
+      toast.success("Practice Settings Updated", {
+        description: `Slot duration set to ${slotDuration} min (${
+          autoApprove ? "Auto-Approve" : "Manual Review"
+        }).`,
+      });
       setTimeout(() => setSettingsSuccess(""), 4000);
       await loadDashboard();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save doctor practice settings", err);
+      toast.error("Failed to Save Practice Settings", {
+        description: err?.message || "Could not update doctor practice settings.",
+      });
     } finally {
       setSavingSettings(false);
     }
@@ -118,8 +142,14 @@ export default function AdminDashboardPage() {
     try {
       await appsApi.update(id, { status });
       await loadDashboard();
-    } catch (err) {
+      toast.success("Appointment Updated", {
+        description: `Appointment status changed to ${status}.`,
+      });
+    } catch (err: any) {
       console.error("Failed to update appointment status", err);
+      toast.error("Failed to Update Appointment", {
+        description: err?.message || "Could not update appointment status.",
+      });
     }
   };
 

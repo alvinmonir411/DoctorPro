@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Activity, Plus, Pencil, Trash2 } from "lucide-react";
 import { services as servicesApi, departments as deptsApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function AdminServicesPage() {
   const [servicesList, setServicesList] = useState<any[]>([]);
@@ -37,9 +38,22 @@ export default function AdminServicesPage() {
         deptsApi.getAll(),
       ]);
       if (servs.status === "fulfilled" && Array.isArray(servs.value)) setServicesList(servs.value);
+      else if (servs.status === "rejected") {
+        toast.error("Failed to Load Services", {
+          description: servs.reason?.message || "Could not fetch medical services.",
+        });
+      }
       if (depts.status === "fulfilled" && Array.isArray(depts.value)) setDepartmentsList(depts.value);
-    } catch (err) {
+      else if (depts.status === "rejected") {
+        toast.error("Failed to Load Departments", {
+          description: depts.reason?.message || "Could not fetch departments.",
+        });
+      }
+    } catch (err: any) {
       console.error("Failed to load services data", err);
+      toast.error("Failed to Load Services", {
+        description: err?.message || "Could not fetch services.",
+      });
     } finally {
       setLoading(false);
     }
@@ -78,6 +92,7 @@ export default function AdminServicesPage() {
           departmentId: departmentId || undefined,
           description,
         });
+        toast.success("Service Updated", { description: `${name} was updated successfully.` });
       } else {
         await servicesApi.create({
           name,
@@ -85,11 +100,14 @@ export default function AdminServicesPage() {
           departmentId: departmentId || undefined,
           description,
         });
+        toast.success("Service Created", { description: `${name} was added successfully.` });
       }
       setModalOpen(false);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to save service");
+      toast.error("Failed to Save Service", {
+        description: err?.message || "Failed to save service",
+      });
     } finally {
       setSaving(false);
     }
@@ -100,8 +118,11 @@ export default function AdminServicesPage() {
     try {
       await servicesApi.delete(id);
       await loadData();
+      toast.success("Service Deleted");
     } catch (err: any) {
-      alert(err.message || "Failed to delete service");
+      toast.error("Failed to Delete Service", {
+        description: err?.message || "Failed to delete service",
+      });
     }
   };
 
