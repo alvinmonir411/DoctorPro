@@ -11,7 +11,8 @@ export function getMediaUrl(path?: string | null): string {
     path.startsWith("http://") ||
     path.startsWith("https://") ||
     path.startsWith("data:") ||
-    path.startsWith("blob:")
+    path.startsWith("blob:") ||
+    path.startsWith("/images/")
   ) {
     return path;
   }
