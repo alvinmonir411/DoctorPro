@@ -24,6 +24,8 @@ import {
   User,
   Radio,
   Volume2,
+  Lock,
+  Calendar,
 } from "lucide-react";
 import { appointments as appsApi, doctors as docsApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
@@ -42,6 +44,7 @@ function LiveQueueContent() {
   const [doctorsList, setDoctorsList] = useState<any[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(urlDoctorId);
   const [phoneInput, setPhoneInput] = useState<string>(urlPhone);
+  const [trackedPhone, setTrackedPhone] = useState<string>(urlPhone);
   const [appointmentIdInput, setAppointmentIdInput] = useState<string>(urlAppId);
 
   const [queueData, setQueueData] = useState<any>(null);
@@ -57,7 +60,10 @@ function LiveQueueContent() {
         const res = await docsApi.getAll("activeOnly=true");
         if (Array.isArray(res) && res.length > 0) {
           setDoctorsList(res);
-          setSelectedDoctorId((prev) => prev || urlDoctorId || res[0].id);
+          // Avoid defaulting to res[0] when resolving an explicit appointmentId from URL
+          if (!urlAppId) {
+            setSelectedDoctorId((prev) => prev || urlDoctorId || res[0].id);
+          }
         }
       } catch (err: any) {
         console.error("Failed to load doctors", err);
@@ -67,7 +73,7 @@ function LiveQueueContent() {
       }
     }
     loadDoctors();
-  }, [urlDoctorId]);
+  }, [urlDoctorId, urlAppId]);
 
   // Fetch live queue data
   const fetchQueue = useCallback(async (isSilent = false) => {
@@ -77,11 +83,11 @@ function LiveQueueContent() {
       const res = await appsApi.getLiveQueue({
         doctorId: selectedDoctorId || undefined,
         appointmentId: appointmentIdInput.trim() || undefined,
-        phone: phoneInput.trim() || undefined,
+        phone: trackedPhone.trim() || undefined,
       });
       setQueueData(res);
       setLastRefreshed(new Date());
-      if (res?.doctor?.id && !selectedDoctorId) {
+      if (res?.doctor?.id && res.doctor.id !== selectedDoctorId && !selectedDoctorId) {
         setSelectedDoctorId(res.doctor.id);
       }
     } catch (err: any) {
@@ -95,7 +101,7 @@ function LiveQueueContent() {
       setLoading(false);
       if (!isSilent) setRefreshing(false);
     }
-  }, [selectedDoctorId, appointmentIdInput, phoneInput]);
+  }, [selectedDoctorId, appointmentIdInput, trackedPhone]);
 
   // Initial fetch and dependency trigger
   useEffect(() => {
@@ -110,14 +116,38 @@ function LiveQueueContent() {
     return () => clearInterval(timer);
   }, [fetchQueue]);
 
+  const handleDoctorChange = (nextDoctorId: string, nextAppointmentId = "") => {
+    setSelectedDoctorId(nextDoctorId);
+    setAppointmentIdInput(nextAppointmentId);
+    const params = new URLSearchParams();
+    if (nextDoctorId) params.set("doctorId", nextDoctorId);
+    if (nextAppointmentId) params.set("appointmentId", nextAppointmentId);
+    const activePhone = trackedPhone.trim() || phoneInput.trim();
+    if (activePhone) params.set("phone", activePhone);
+    router.replace(`/live-queue?${params.toString()}`, { scroll: false });
+  };
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchQueue(false);
+    const cleanPhone = phoneInput.trim();
+    const alreadySynced = cleanPhone === trackedPhone.trim() && !appointmentIdInput;
+    if (appointmentIdInput) {
+      setAppointmentIdInput("");
+    }
+    setTrackedPhone(cleanPhone);
+    const params = new URLSearchParams();
+    if (selectedDoctorId) params.set("doctorId", selectedDoctorId);
+    if (cleanPhone) params.set("phone", cleanPhone);
+    router.replace(`/live-queue?${params.toString()}`, { scroll: false });
+    if (alreadySynced) {
+      fetchQueue(false);
+    }
   };
 
   const doctor = queueData?.doctor;
   const currentlyServing = queueData?.currentlyServing;
   const myQueue = queueData?.myQueueStatus;
+  const otherDoctorApp = queueData?.otherDoctorAppointment;
   const stats = queueData?.stats;
   const queueList = queueData?.queueList || [];
 
@@ -152,7 +182,7 @@ function LiveQueueContent() {
               <DoctorSearchSelect
                 doctors={doctorsList}
                 value={selectedDoctorId}
-                onChange={setSelectedDoctorId}
+                onChange={(id) => handleDoctorChange(id)}
                 placeholder="Search doctor name or specialty..."
               />
             </div>
@@ -165,7 +195,13 @@ function LiveQueueContent() {
               <Input
                 placeholder="e.g. 01712345678"
                 value={phoneInput}
-                onChange={(e) => setPhoneInput(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPhoneInput(next);
+                  if (!next.trim()) {
+                    setTrackedPhone("");
+                  }
+                }}
                 className="h-11 rounded-2xl text-xs sm:text-sm"
               />
             </div>
@@ -202,6 +238,31 @@ function LiveQueueContent() {
             </span>
           </div>
         </Card>
+
+        {/* Hint if typed phone matches a booking with another doctor today */}
+        {!myQueue && otherDoctorApp && (
+          <div className="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-start gap-2.5 text-sky-900 dark:text-sky-100">
+              <AlertCircle className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">
+                  Found your booking for today with {otherDoctorApp.doctorName}
+                </p>
+                <p className="text-[11px] opacity-85">
+                  Serial #{otherDoctorApp.serialNumber} • Slot: {otherDoctorApp.timeSlot} (Not in {doctor?.name || "selected"}&apos;s chamber)
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleDoctorChange(otherDoctorApp.doctorId, otherDoctorApp.appointmentId)}
+              className="rounded-xl text-xs bg-sky-600 hover:bg-sky-700 text-white shrink-0"
+            >
+              Switch to {otherDoctorApp.doctorName}&apos;s Queue <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
 
         {/* ─── Tracked Patient Hero Queue Display (If matched patient) ─── */}
         {myQueue && (
@@ -295,16 +356,7 @@ function LiveQueueContent() {
           </Card>
         )}
 
-        {!myQueue && doctor && (
-          <NotifyTurnButton
-            doctorId={doctor.id}
-            doctorName={doctor.name}
-            patientPhone={phoneInput || undefined}
-            allowSerialInput
-          />
-        )}
-
-        {/* ─── Doctor & Chamber Information Card ─── */}
+        {/* ─── Doctor & Chamber Information + Queue (Verified Patients Only) ─── */}
         {doctor && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="md:col-span-1 rounded-3xl border shadow-xs p-6 bg-card flex flex-col justify-between space-y-4">
@@ -325,7 +377,7 @@ function LiveQueueContent() {
                   </div>
                   <div>
                     <h3 className="font-bold text-base text-foreground leading-tight">
-                      Dr. {doctor.name}
+                      {/^dr\.?\s/i.test(doctor.name) ? doctor.name : `Dr. ${doctor.name}`}
                     </h3>
                     <p className="text-xs text-primary font-medium">{doctor.specialization}</p>
                     <p className="text-[11px] text-muted-foreground">{doctor.title}</p>
@@ -360,96 +412,129 @@ function LiveQueueContent() {
               </div>
             </Card>
 
-            {/* Chamber Live Queue Display (Waiting Room Table) */}
+            {/* Chamber Live Queue Display — Locked unless patient has an active booking today */}
             <Card className="md:col-span-2 rounded-3xl border shadow-xs p-6 bg-card space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-base text-foreground">
-                    Chamber Queue Display Board
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Total: {stats?.totalPatientsToday || 0} Patients • Completed: {stats?.completedCount || 0} • Waiting: {stats?.waitingCount || 0}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
-                    Now Inside
-                  </span>
-                  <span className="text-lg font-black text-emerald-600">
-                    Serial #{currentlyServing?.serialNumber || doctor.currentServingSerial || 0}
-                  </span>
-                </div>
-              </div>
+              {myQueue ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-base text-foreground">
+                        Chamber Queue Display Board
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Total: {stats?.totalPatientsToday || 0} Patients • Completed: {stats?.completedCount || 0} • Waiting: {stats?.waitingCount || 0}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
+                        Now Inside
+                      </span>
+                      <span className="text-lg font-black text-emerald-600">
+                        Serial #{currentlyServing?.serialNumber || doctor.currentServingSerial || 0}
+                      </span>
+                    </div>
+                  </div>
 
-              {queueList.length > 0 ? (
-                <div className="overflow-x-auto max-h-72 overflow-y-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="border-b text-muted-foreground font-medium bg-muted/40 sticky top-0">
-                      <tr>
-                        <th className="p-2.5">Serial</th>
-                        <th className="p-2.5">Time Slot</th>
-                        <th className="p-2.5">Patient Token</th>
-                        <th className="p-2.5 text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {queueList.map((item: any) => {
-                        const isMe = myQueue?.yourSerial === item.serialNumber;
-                        return (
-                          <tr
-                            key={item.id}
-                            className={`transition-colors ${
-                              item.isServing
-                                ? "bg-emerald-50 dark:bg-emerald-950/20 font-bold"
-                                : isMe
-                                ? "bg-primary/10 font-bold"
-                                : "hover:bg-muted/20"
-                            }`}
-                          >
-                            <td className="p-2.5">
-                              <span
-                                className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black ${
+                  {queueList.length > 0 ? (
+                    <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead className="border-b text-muted-foreground font-medium bg-muted/40 sticky top-0">
+                          <tr>
+                            <th className="p-2.5">Serial</th>
+                            <th className="p-2.5">Time Slot</th>
+                            <th className="p-2.5">Patient Token</th>
+                            <th className="p-2.5 text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {queueList.map((item: any) => {
+                            const isMe = myQueue?.yourSerial === item.serialNumber;
+                            return (
+                              <tr
+                                key={item.id}
+                                className={`transition-colors ${
                                   item.isServing
-                                    ? "bg-emerald-600 text-white shadow-xs animate-pulse"
-                                    : item.isCompleted
-                                    ? "bg-muted text-muted-foreground"
-                                    : "bg-slate-100 text-slate-800"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/20 font-bold"
+                                    : isMe
+                                    ? "bg-primary/10 font-bold"
+                                    : "hover:bg-muted/20"
                                 }`}
                               >
-                                #{item.serialNumber}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-muted-foreground font-mono">{item.timeSlot}</td>
-                            <td className="p-2.5">
-                              <span className="font-semibold text-foreground">
-                                {isMe ? `${item.maskedName} (YOU)` : item.maskedName}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-right">
-                              {item.isServing ? (
-                                <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] animate-pulse">
-                                  ● Now Inside Room
-                                </Badge>
-                              ) : item.isCompleted ? (
-                                <Badge variant="secondary" className="text-[10px] text-muted-foreground">
-                                  ✓ Completed
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-[10px] text-slate-600">
-                                  Waiting
-                                </Badge>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                <td className="p-2.5">
+                                  <span
+                                    className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black ${
+                                      item.isServing
+                                        ? "bg-emerald-600 text-white shadow-xs animate-pulse"
+                                        : item.isCompleted
+                                        ? "bg-muted text-muted-foreground"
+                                        : "bg-slate-100 text-slate-800"
+                                    }`}
+                                  >
+                                    #{item.serialNumber}
+                                  </span>
+                                </td>
+                                <td className="p-2.5 text-muted-foreground font-mono">{item.timeSlot}</td>
+                                <td className="p-2.5">
+                                  <span className="font-semibold text-foreground">
+                                    {isMe ? `${item.maskedName} (YOU)` : item.maskedName}
+                                  </span>
+                                </td>
+                                <td className="p-2.5 text-right">
+                                  {item.isServing ? (
+                                    <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] animate-pulse">
+                                      ● Now Inside Room
+                                    </Badge>
+                                  ) : item.isCompleted ? (
+                                    <Badge variant="secondary" className="text-[10px] text-muted-foreground">
+                                      ✓ Completed
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] text-slate-600">
+                                      Waiting
+                                    </Badge>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-10 text-muted-foreground text-xs space-y-2">
+                      <Clock className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+                      <p>No appointments booked for today yet.</p>
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className="text-center py-10 text-muted-foreground text-xs space-y-2">
-                  <Clock className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-                  <p>No appointments booked for today yet.</p>
+                <div className="flex flex-col items-center justify-center text-center py-8 px-4 space-y-4">
+                  <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Lock className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1.5 max-w-md">
+                    <h3 className="font-bold text-base text-foreground">
+                      Booking Required to View Live Queue
+                    </h3>
+                    {trackedPhone.trim() ? (
+                      <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                        No active appointment found today for phone{" "}
+                        <span className="font-mono font-bold">{trackedPhone.trim()}</span> with{" "}
+                        <strong>{/^dr\.?\s/i.test(doctor.name) ? doctor.name : `Dr. ${doctor.name}`}</strong>.
+                        Only booked patients of this chamber can view live serial numbers and wait time.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Select your doctor above and enter the phone number used when booking today&apos;s
+                        appointment to check which serial is running now and when your turn will arrive.
+                      </p>
+                    )}
+                  </div>
+                  <Button asChild size="sm" className="rounded-xl text-xs bg-primary hover:bg-primary/90">
+                    <Link href={`/appointment?doctorId=${encodeURIComponent(doctor.id)}`}>
+                      <Calendar className="mr-1.5 h-3.5 w-3.5" /> Book an Appointment
+                    </Link>
+                  </Button>
                 </div>
               )}
             </Card>

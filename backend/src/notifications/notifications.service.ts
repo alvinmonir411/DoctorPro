@@ -374,7 +374,7 @@ export class NotificationsService implements OnModuleInit {
         timeSlot: appointment.timeSlot,
         serialNumber: appointment.serialNumber || 1,
         status: appointment.status,
-        liveQueueUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/live-queue?appointmentId=${appointment.id}&phone=${encodeURIComponent(appointment.patient?.phone || '')}`,
+        liveQueueUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/live-queue?doctorId=${encodeURIComponent(appointment.doctorId)}&appointmentId=${appointment.id}&phone=${encodeURIComponent(appointment.patient?.phone || '')}`,
       });
 
       await this.sendEmail({
@@ -401,7 +401,7 @@ export class NotificationsService implements OnModuleInit {
       : 'your doctor';
     const serial = appointment.serialNumber || 1;
     const dateStr = this.formatDate(appointment.date);
-    const targetUrl = `/live-queue?appointmentId=${appointment.id}&phone=${encodeURIComponent(appointment.patient?.phone || '')}`;
+    const targetUrl = `/live-queue?doctorId=${encodeURIComponent(appointment.doctorId)}&appointmentId=${appointment.id}&phone=${encodeURIComponent(appointment.patient?.phone || '')}`;
 
     // 1. Web Push to subscribed devices
     const subs = skipPush
@@ -510,7 +510,7 @@ export class NotificationsService implements OnModuleInit {
         ? `Dr. ${appt.doctor.name}`
         : 'your doctor';
       const dateStr = this.formatDate(appt.date);
-      const targetUrl = `/live-queue?appointmentId=${appt.id}&phone=${encodeURIComponent(appt.patient?.phone || '')}`;
+      const targetUrl = `/live-queue?doctorId=${encodeURIComponent(appt.doctorId)}&appointmentId=${appt.id}&phone=${encodeURIComponent(appt.patient?.phone || '')}`;
 
       // 2-hour urgent reminder
       if (diffHours <= 2.25 && !appt.reminder2hSent) {

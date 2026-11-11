@@ -199,6 +199,9 @@ export const appointments = {
     return get<any>(`/appointments/live-queue?${q.toString()}`);
   },
 
+  getManageLiveQueue: (doctorId?: string) =>
+    get<any>(`/appointments/live-queue/manage${doctorId ? `?doctorId=${encodeURIComponent(doctorId)}` : ""}`),
+
   advanceLiveQueue: (data: { doctorId: string; action: string; targetSerial?: number }) =>
     post<any>("/appointments/live-queue/advance", data),
 };

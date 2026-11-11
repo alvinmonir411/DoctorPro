@@ -256,7 +256,7 @@ function AppointmentContent() {
 
               <div className="pt-2 flex flex-col gap-2.5">
                 <Button asChild className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-sm text-xs">
-                  <Link href={`/live-queue?appointmentId=${successBooking?.id || ""}&phone=${patientPhone}`}>
+                  <Link href={`/live-queue?doctorId=${encodeURIComponent(selectedDoctorId)}&appointmentId=${encodeURIComponent(successBooking?.id || "")}&phone=${encodeURIComponent(patientPhone)}`}>
                     <span className="relative flex h-2.5 w-2.5 mr-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>

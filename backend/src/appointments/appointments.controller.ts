@@ -54,6 +54,12 @@ export class AppointmentsController {
     });
   }
 
+  @Get('live-queue/manage')
+  @UseGuards(JwtAuthGuard)
+  getManageLiveQueue(@Query('doctorId') doctorId?: string, @Req() req?: any) {
+    return this.appointmentsService.getManageLiveQueue(doctorId, req?.user);
+  }
+
   @Post('live-queue/advance')
   @UseGuards(JwtAuthGuard)
   advanceLiveQueue(

@@ -334,24 +334,97 @@ export class AppointmentsService {
 
   // ─── Real-Time Chamber Queue & Live Serial Tracking ───
 
+  private getDayWindow(dateInput?: string | Date) {
+    const base = dateInput ? new Date(dateInput) : new Date();
+    const startOfDay = new Date(base);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(base);
+    endOfDay.setHours(23, 59, 59, 999);
+    return { startOfDay, endOfDay };
+  }
+
+  private formatLockedChamberView(doctor: any, otherDoctorAppointment: any = null) {
+    return {
+      hasActiveBooking: false,
+      requiresBooking: true,
+      doctor: {
+        id: doctor.id,
+        name: doctor.name,
+        title: doctor.title,
+        specialization: doctor.specialization,
+        department: doctor.department?.name,
+        image: doctor.image,
+        chamberAddress: doctor.chamberAddress,
+        phone: doctor.phone,
+        slotDuration: doctor.slotDuration || 15,
+        chamberStatus: doctor.chamberStatus || 'ACTIVE',
+      },
+      currentlyServing: null,
+      stats: null,
+      myQueueStatus: null,
+      otherDoctorAppointment,
+      queueList: [],
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  async getManageLiveQueue(doctorId?: string, currentUser?: ScopedRequestUser) {
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+    const effectiveDoctorId = scopedDoctorId ?? doctorId?.trim();
+    if (!effectiveDoctorId) {
+      throw new BadRequestException('doctorId is required');
+    }
+
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: effectiveDoctorId },
+      include: { department: true },
+    });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+
+    const { startOfDay, endOfDay } = this.getDayWindow();
+    return this.formatChamberQueue(doctor, startOfDay, endOfDay, null, null);
+  }
+
   async getLiveQueue(params: {
     doctorId?: string;
     appointmentId?: string;
     phone?: string;
     date?: string;
   }) {
-    const today = params.date ? new Date(params.date) : new Date();
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { startOfDay, endOfDay } = this.getDayWindow(params.date);
 
+    const requestedDoctorId = params.doctorId?.trim() || undefined;
+    const cleanPhone = params.phone?.trim() || undefined;
     let targetAppointment: any = null;
 
-    // 1. If appointmentId is provided
+    // 1. If appointmentId is provided, only bind if active and matches requestedDoctorId (when specified)
     if (params.appointmentId) {
-      targetAppointment = await this.prisma.appointment.findUnique({
+      const candidate = await this.prisma.appointment.findUnique({
         where: { id: params.appointmentId },
+        include: {
+          doctor: { include: { department: true } },
+          patient: true,
+        },
+      });
+      if (
+        candidate &&
+        candidate.status !== 'CANCELLED' &&
+        (!requestedDoctorId || candidate.doctorId === requestedDoctorId)
+      ) {
+        targetAppointment = candidate;
+      }
+    }
+
+    // 2. If phone is provided, find today's active appointment for that phone (scoped to requestedDoctorId if given)
+    if (!targetAppointment && cleanPhone) {
+      targetAppointment = await this.prisma.appointment.findFirst({
+        where: {
+          patient: { phone: cleanPhone },
+          ...(requestedDoctorId ? { doctorId: requestedDoctorId } : {}),
+          date: { gte: startOfDay, lte: endOfDay },
+          status: { not: 'CANCELLED' },
+        },
+        orderBy: { createdAt: 'desc' },
         include: {
           doctor: { include: { department: true } },
           patient: true,
@@ -359,39 +432,18 @@ export class AppointmentsService {
       });
     }
 
-    // 2. If phone is provided, find today's latest appointment for this phone
-    if (!targetAppointment && params.phone) {
-      const patient = await this.prisma.patient.findFirst({
-        where: { phone: params.phone.trim() },
-      });
-      if (patient) {
-        targetAppointment = await this.prisma.appointment.findFirst({
-          where: {
-            patientId: patient.id,
-            ...(params.doctorId ? { doctorId: params.doctorId } : {}),
-            date: { gte: startOfDay, lte: endOfDay },
-          },
-          orderBy: { createdAt: 'desc' },
-          include: {
-            doctor: { include: { department: true } },
-            patient: true,
-          },
-        });
-      }
-    }
-
-    // Resolve doctorId
-    const doctorId = targetAppointment ? targetAppointment.doctorId : params.doctorId;
+    // 3. Respect explicit requestedDoctorId strictly so switching chambers never jumps back to another doctor
+    const doctorId = requestedDoctorId || targetAppointment?.doctorId;
     if (!doctorId) {
-      // If neither is provided, fetch first active doctor
       const defaultDoc = await this.prisma.doctor.findFirst({
         where: { isActive: true },
         include: { department: true },
+        orderBy: { createdAt: 'asc' },
       });
       if (!defaultDoc) {
         throw new NotFoundException('No active doctors found');
       }
-      return this.formatChamberQueue(defaultDoc, startOfDay, endOfDay, null);
+      return this.formatLockedChamberView(defaultDoc, null);
     }
 
     const doctor = await this.prisma.doctor.findUnique({
@@ -400,7 +452,43 @@ export class AppointmentsService {
     });
     if (!doctor) throw new NotFoundException('Doctor not found');
 
-    return this.formatChamberQueue(doctor, startOfDay, endOfDay, targetAppointment);
+    // Only patients with an active booking today for this doctor can view live queue details
+    if (!targetAppointment) {
+      let otherDoctorAppointment: any = null;
+      if (cleanPhone && requestedDoctorId) {
+        const other = await this.prisma.appointment.findFirst({
+          where: {
+            patient: { phone: cleanPhone },
+            doctorId: { not: requestedDoctorId },
+            date: { gte: startOfDay, lte: endOfDay },
+            status: { not: 'CANCELLED' },
+          },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            doctor: { select: { id: true, name: true, specialization: true } },
+          },
+        });
+        if (other) {
+          otherDoctorAppointment = {
+            appointmentId: other.id,
+            doctorId: other.doctorId,
+            doctorName: other.doctor.name,
+            specialization: other.doctor.specialization,
+            serialNumber: other.serialNumber,
+            timeSlot: other.timeSlot,
+          };
+        }
+      }
+      return this.formatLockedChamberView(doctor, otherDoctorAppointment);
+    }
+
+    return this.formatChamberQueue(
+      doctor,
+      startOfDay,
+      endOfDay,
+      targetAppointment,
+      null,
+    );
   }
 
   private async formatChamberQueue(
@@ -408,6 +496,7 @@ export class AppointmentsService {
     startOfDay: Date,
     endOfDay: Date,
     myAppointment: any,
+    otherDoctorAppointment: any = null,
   ) {
     const slotDuration = doctor.slotDuration || 15;
     const currentServingSerial = doctor.currentServingSerial || 0;
@@ -425,6 +514,10 @@ export class AppointmentsService {
     });
 
     const totalPatientsToday = appointmentsToday.length;
+    const maxSerialToday = appointmentsToday.reduce(
+      (max, a, idx) => Math.max(max, a.serialNumber || idx + 1),
+      0,
+    );
     const completedCount = appointmentsToday.filter(
       (a) => a.status === 'COMPLETED' || (a.serialNumber && a.serialNumber < currentServingSerial),
     ).length;
@@ -492,6 +585,8 @@ export class AppointmentsService {
     });
 
     return {
+      hasActiveBooking: Boolean(myAppointment),
+      requiresBooking: false,
       doctor: {
         id: doctor.id,
         name: doctor.name,
@@ -516,6 +611,7 @@ export class AppointmentsService {
         : null,
       stats: {
         totalPatientsToday,
+        maxSerialToday,
         completedCount,
         waitingCount: Math.max(0, totalPatientsToday - completedCount),
       },
@@ -541,6 +637,7 @@ export class AppointmentsService {
               : `${patientsAhead} patient(s) ahead of you. Estimated wait: ~${estimatedWaitMinutes} minutes.`,
           }
         : null,
+      otherDoctorAppointment,
       queueList,
       timestamp: new Date().toISOString(),
     };
@@ -565,16 +662,38 @@ export class AppointmentsService {
     });
     if (!doctor) throw new NotFoundException('Doctor not found');
 
-    const today = new Date();
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { startOfDay, endOfDay } = this.getDayWindow();
+
+    const todaysAppointments = await this.prisma.appointment.findMany({
+      where: {
+        doctorId: effectiveDoctorId,
+        date: { gte: startOfDay, lte: endOfDay },
+        status: { not: 'CANCELLED' },
+      },
+      orderBy: [{ serialNumber: 'asc' }, { timeSlot: 'asc' }],
+      select: { id: true, serialNumber: true, status: true },
+    });
+    const totalBookedToday = todaysAppointments.length;
+    const maxSerialToday = todaysAppointments.reduce(
+      (max, a, idx) => Math.max(max, a.serialNumber || idx + 1),
+      0,
+    );
 
     let nextSerial = doctor.currentServingSerial || 0;
     let nextStatus = doctor.chamberStatus || 'ACTIVE';
 
     if (action === 'NEXT') {
+      if (maxSerialToday === 0) {
+        throw new BadRequestException(
+          'No appointments booked for today yet. You can only call next patient when appointments are booked.',
+        );
+      }
+      if (nextSerial >= maxSerialToday) {
+        throw new BadRequestException(
+          `Cannot advance beyond Serial #${maxSerialToday}. Only ${totalBookedToday} appointment(s) booked today.`,
+        );
+      }
+
       // Mark current serving appointment as COMPLETED
       if (nextSerial > 0) {
         await this.prisma.appointment.updateMany({
@@ -582,6 +701,7 @@ export class AppointmentsService {
             doctorId: effectiveDoctorId,
             date: { gte: startOfDay, lte: endOfDay },
             serialNumber: nextSerial,
+            status: { not: 'CANCELLED' },
           },
           data: { status: 'COMPLETED' },
         });
@@ -596,15 +716,62 @@ export class AppointmentsService {
           doctorId: effectiveDoctorId,
           date: { gte: startOfDay, lte: endOfDay },
           serialNumber: nextSerial,
+          status: { not: 'CANCELLED' },
         },
         data: { status: 'SERVING' },
       });
+    } else if (action === 'COMPLETE_CURRENT') {
+      if (nextSerial > 0) {
+        await this.prisma.appointment.updateMany({
+          where: {
+            doctorId: effectiveDoctorId,
+            date: { gte: startOfDay, lte: endOfDay },
+            serialNumber: nextSerial,
+            status: { not: 'CANCELLED' },
+          },
+          data: { status: 'COMPLETED' },
+        });
+      }
     } else if (action === 'PREV') {
-      nextSerial = Math.max(0, nextSerial - 1);
+      if (nextSerial > 0) {
+        await this.prisma.appointment.updateMany({
+          where: {
+            doctorId: effectiveDoctorId,
+            date: { gte: startOfDay, lte: endOfDay },
+            serialNumber: nextSerial,
+            status: 'SERVING',
+          },
+          data: { status: 'CONFIRMED' },
+        });
+      }
+      const stepped = Math.max(0, nextSerial - 1);
+      nextSerial = maxSerialToday > 0 ? Math.min(stepped, maxSerialToday) : 0;
+      if (nextSerial > 0) {
+        await this.prisma.appointment.updateMany({
+          where: {
+            doctorId: effectiveDoctorId,
+            date: { gte: startOfDay, lte: endOfDay },
+            serialNumber: nextSerial,
+            status: { not: 'CANCELLED' },
+          },
+          data: { status: 'SERVING' },
+        });
+      }
+    } else if (action === 'RESET') {
+      nextSerial = 0;
+      nextStatus = 'ACTIVE';
+      await this.prisma.appointment.updateMany({
+        where: {
+          doctorId: effectiveDoctorId,
+          date: { gte: startOfDay, lte: endOfDay },
+          status: { in: ['SERVING', 'COMPLETED'] },
+        },
+        data: { status: 'CONFIRMED' },
+      });
     } else if (action === 'BREAK') {
       nextStatus = doctor.chamberStatus === 'BREAK' ? 'ACTIVE' : 'BREAK';
     } else if (action === 'SET' && typeof targetSerial === 'number') {
-      nextSerial = Math.max(0, targetSerial);
+      nextSerial = Math.max(0, Math.min(maxSerialToday, targetSerial));
     }
 
     const updatedDoctor = await this.prisma.doctor.update({
@@ -616,10 +783,12 @@ export class AppointmentsService {
       include: { department: true },
     });
 
-    this.notifications
-      .notifyQueueTurnUpdates(updatedDoctor, nextSerial, nextStatus)
-      .catch(() => {});
+    if (action !== 'RESET' && action !== 'COMPLETE_CURRENT') {
+      this.notifications
+        .notifyQueueTurnUpdates(updatedDoctor, nextSerial, nextStatus)
+        .catch(() => {});
+    }
 
-    return this.formatChamberQueue(updatedDoctor, startOfDay, endOfDay, null);
+    return this.formatChamberQueue(updatedDoctor, startOfDay, endOfDay, null, null);
   }
 }

@@ -57,6 +57,7 @@ export default function AdminDashboardPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState("");
   const [advancingQueue, setAdvancingQueue] = useState(false);
+  const [manageQueue, setManageQueue] = useState<any>(null);
 
   // Per-Doctor Email / Resend API Configuration (DOCTOR ONLY)
   const [docEmailProvider, setDocEmailProvider] = useState<"auto" | "resend" | "smtp">("auto");
@@ -91,14 +92,20 @@ export default function AdminDashboardPage() {
         }
       }
 
-      // Fetch linked doctor profile
+      // Fetch linked doctor profile & live queue stats
       const docIdToLoad = user?.doctorId || (userRole === "DOCTOR" ? doctorProfile?.id : null);
       if (docIdToLoad) {
-        const doc = await doctorsApi.getById(docIdToLoad).catch(() => null);
+        const [doc, qData] = await Promise.all([
+          doctorsApi.getById(docIdToLoad).catch(() => null),
+          appsApi.getManageLiveQueue(docIdToLoad).catch(() => null),
+        ]);
         if (doc) {
           setDoctorProfile(doc);
           setSlotDuration(doc.slotDuration || 30);
           setAutoApprove(Boolean(doc.autoApprove));
+        }
+        if (qData) {
+          setManageQueue(qData);
         }
       }
 
@@ -133,6 +140,16 @@ export default function AdminDashboardPage() {
   const handleAdvanceQueue = async (action: string) => {
     const docId = doctorProfile?.id || user?.doctorId;
     if (!docId) return;
+
+    if (action === "RESET") {
+      const ok = await confirmActionToast({
+        title: "Reset Today's Queue to #0?",
+        description: "Sets Current Serving Token back to #0 and restores today's queued slots so you can start again from 0.",
+        confirmLabel: "Reset to #0",
+      });
+      if (!ok) return;
+    }
+
     setAdvancingQueue(true);
     try {
       await appsApi.advanceLiveQueue({ doctorId: docId, action });
@@ -143,6 +160,10 @@ export default function AdminDashboardPage() {
             ? "Called next patient in serial queue."
             : action === "PREV"
             ? "Moved back to previous serial."
+            : action === "RESET"
+            ? "Chamber serial queue reset to #0."
+            : action === "COMPLETE_CURRENT"
+            ? "Marked current serial as completed."
             : doctorProfile?.chamberStatus === "BREAK"
             ? "Chamber resumed."
             : "Chamber paused for break.",
@@ -383,66 +404,121 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-              {/* Current Serial */}
-              <div className="p-4 rounded-2xl bg-card border shadow-xs space-y-1">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                  Current Serving Token
-                </span>
-                <p className="text-3xl sm:text-4xl font-black text-emerald-600">
-                  #{doctorProfile?.currentServingSerial || 0}
-                </p>
-                <span className="text-[11px] text-muted-foreground block">
-                  {doctorProfile?.chamberStatus === "BREAK" ? "Clinic Paused / Break" : "Inside Consultation Room"}
-                </span>
-              </div>
+            {(() => {
+              const currentServing = doctorProfile?.currentServingSerial || 0;
+              const maxSerialToday = manageQueue?.stats?.maxSerialToday || 0;
+              const totalBookedToday = manageQueue?.stats?.totalPatientsToday || 0;
+              const canCallNext = maxSerialToday > 0 && currentServing < maxSerialToday;
+              const activeCurrentItem = Array.isArray(manageQueue?.queueList)
+                ? manageQueue.queueList.find((q: any) => q.serialNumber === currentServing)
+                : null;
+              const canCompleteCurrent =
+                currentServing > 0 &&
+                currentServing <= maxSerialToday &&
+                activeCurrentItem &&
+                activeCurrentItem.status !== "COMPLETED";
 
-              {/* Next In Line */}
-              <div className="p-4 rounded-2xl bg-card border shadow-xs space-y-1">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                  Next In Line
-                </span>
-                <p className="text-3xl sm:text-4xl font-black text-primary">
-                  #{(doctorProfile?.currentServingSerial || 0) + 1}
-                </p>
-                <span className="text-[11px] text-muted-foreground block">
-                  Waiting outside chamber door
-                </span>
-              </div>
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                  {/* Current Serial */}
+                  <div className="p-4 rounded-2xl bg-card border shadow-xs space-y-1">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                      Current Serving Token
+                    </span>
+                    <p className="text-3xl sm:text-4xl font-black text-emerald-600">
+                      #{currentServing}
+                    </p>
+                    <span className="text-[11px] text-muted-foreground block">
+                      {doctorProfile?.chamberStatus === "BREAK"
+                        ? "Clinic Paused / Break"
+                        : currentServing === 0
+                        ? `Ready (${totalBookedToday} booked today)`
+                        : "Inside Consultation Room"}
+                    </span>
+                  </div>
 
-              {/* Quick Actions */}
-              <div className="p-4 rounded-2xl bg-card border shadow-xs flex flex-col justify-center gap-2">
-                <Button
-                  onClick={() => handleAdvanceQueue("NEXT")}
-                  disabled={advancingQueue}
-                  className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs"
-                >
-                  <Volume2 className="mr-1.5 h-4 w-4" /> Call Next Patient (Serial #{(doctorProfile?.currentServingSerial || 0) + 1})
-                </Button>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAdvanceQueue("PREV")}
-                    disabled={advancingQueue || (doctorProfile?.currentServingSerial || 0) <= 0}
-                    className="flex-1 text-xs rounded-xl"
-                  >
-                    ⏪ Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAdvanceQueue("BREAK")}
-                    disabled={advancingQueue}
-                    className={`flex-1 text-xs rounded-xl ${
-                      doctorProfile?.chamberStatus === "BREAK" ? "bg-amber-100 text-amber-800 font-bold" : ""
-                    }`}
-                  >
-                    {doctorProfile?.chamberStatus === "BREAK" ? "Resume Chamber" : "Take Break"}
-                  </Button>
+                  {/* Next In Line */}
+                  <div className="p-4 rounded-2xl bg-card border shadow-xs space-y-1">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                      Next In Line
+                    </span>
+                    <p className="text-3xl sm:text-4xl font-black text-primary">
+                      {maxSerialToday === 0
+                        ? "—"
+                        : currentServing >= maxSerialToday
+                        ? "Done"
+                        : `#${currentServing + 1}`}
+                    </p>
+                    <span className="text-[11px] text-muted-foreground block">
+                      {maxSerialToday === 0
+                        ? "No booked appointments today"
+                        : currentServing >= maxSerialToday
+                        ? `Reached last booking (#${maxSerialToday})`
+                        : `Waiting outside (${totalBookedToday} total today)`}
+                    </span>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="p-4 rounded-2xl bg-card border shadow-xs flex flex-col justify-center gap-2">
+                    <Button
+                      onClick={() => handleAdvanceQueue("NEXT")}
+                      disabled={advancingQueue || !canCallNext}
+                      className="h-10 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold rounded-xl text-xs shadow-xs"
+                    >
+                      <Volume2 className="mr-1.5 h-4 w-4 shrink-0" />
+                      {maxSerialToday === 0
+                        ? "No Bookings Today (0)"
+                        : currentServing >= maxSerialToday
+                        ? `All ${maxSerialToday} Booked Called`
+                        : `Call Next Patient (#${currentServing + 1} of ${maxSerialToday})`}
+                    </Button>
+                    {canCompleteCurrent && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAdvanceQueue("COMPLETE_CURRENT")}
+                        disabled={advancingQueue}
+                        className="h-8 text-xs rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50 font-semibold"
+                      >
+                        <Check className="mr-1 h-3.5 w-3.5" /> Complete Current (#{currentServing})
+                      </Button>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAdvanceQueue("PREV")}
+                        disabled={advancingQueue || currentServing <= 0}
+                        className="flex-1 text-xs rounded-xl"
+                      >
+                        ⏪ Prev
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAdvanceQueue("BREAK")}
+                        disabled={advancingQueue}
+                        className={`flex-1 text-xs rounded-xl ${
+                          doctorProfile?.chamberStatus === "BREAK" ? "bg-amber-100 text-amber-800 font-bold" : ""
+                        }`}
+                      >
+                        {doctorProfile?.chamberStatus === "BREAK" ? "Resume" : "Break"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAdvanceQueue("RESET")}
+                        disabled={advancingQueue || (currentServing === 0 && totalBookedToday === 0)}
+                        className="text-xs rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 font-semibold"
+                        title="Reset current serving serial back to #0"
+                      >
+                        <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
           </CardContent>
         </Card>
       )}
