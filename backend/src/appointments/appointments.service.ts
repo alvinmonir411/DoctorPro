@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   resolveScopedDoctorId,
   ScopedRequestUser,
@@ -17,7 +18,10 @@ import {
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {}
 
   async bookPublic(dto: BookPublicAppointmentDto) {
     // Check doctor exists
@@ -67,7 +71,7 @@ export class AppointmentsService {
     });
     const serialNumber = existingCount + 1;
 
-    return this.prisma.appointment.create({
+    const created = await this.prisma.appointment.create({
       data: {
         patientId: patient.id,
         doctorId: doctor.id,
@@ -85,6 +89,9 @@ export class AppointmentsService {
         patient: true,
       },
     });
+
+    this.notifications.notifyBookingConfirmation(created).catch(() => {});
+    return created;
   }
 
   async create(dto: CreateAppointmentDto, currentUser?: ScopedRequestUser) {
@@ -192,8 +199,8 @@ export class AppointmentsService {
   }
 
   async update(id: string, dto: UpdateAppointmentDto, currentUser?: ScopedRequestUser) {
-    await this.findOne(id, currentUser);
-    return this.prisma.appointment.update({
+    const existing = await this.findOne(id, currentUser);
+    const updated = await this.prisma.appointment.update({
       where: { id },
       data: {
         ...dto,
@@ -206,6 +213,42 @@ export class AppointmentsService {
         patient: true,
       },
     });
+
+    const today = new Date();
+    const apptDate = new Date(updated.date);
+    const isToday =
+      apptDate.getFullYear() === today.getFullYear() &&
+      apptDate.getMonth() === today.getMonth() &&
+      apptDate.getDate() === today.getDate();
+
+    let handledByQueue = false;
+    if (
+      updated.status === 'SERVING' &&
+      updated.serialNumber &&
+      isToday
+    ) {
+      handledByQueue = true;
+      await this.prisma.doctor
+        .update({
+          where: { id: updated.doctorId },
+          data: {
+            currentServingSerial: updated.serialNumber,
+            chamberStatus: 'ACTIVE',
+          },
+        })
+        .catch(() => {});
+      this.notifications
+        .notifyQueueTurnUpdates(updated.doctor, updated.serialNumber, 'ACTIVE')
+        .catch(() => {});
+    }
+
+    if (updated.status !== existing.status) {
+      this.notifications
+        .notifyAppointmentStatusChange(updated, existing.status, handledByQueue)
+        .catch(() => {});
+    }
+
+    return updated;
   }
 
   async remove(id: string, currentUser?: ScopedRequestUser) {
@@ -572,6 +615,10 @@ export class AppointmentsService {
       },
       include: { department: true },
     });
+
+    this.notifications
+      .notifyQueueTurnUpdates(updatedDoctor, nextSerial, nextStatus)
+      .catch(() => {});
 
     return this.formatChamberQueue(updatedDoctor, startOfDay, endOfDay, null);
   }

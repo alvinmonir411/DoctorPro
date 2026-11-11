@@ -397,6 +397,50 @@ export const staff = {
 };
 
 // ---------------------------------------------------------------------------
+// Notifications (Web Push & Email Config)
+// ---------------------------------------------------------------------------
+
+export const notifications = {
+  getVapidPublicKey: () =>
+    get<{ enabled: boolean; publicKey: string }>("/notifications/vapid-public-key"),
+
+  subscribePush: (data: {
+    subscription: PushSubscriptionJSON;
+    appointmentId?: string;
+    doctorId?: string;
+    patientPhone?: string;
+    serialNumber?: number;
+    userAgent?: string;
+  }) => post<any>("/notifications/push/subscribe", data),
+
+  unsubscribePush: (data: { endpoint: string; appointmentId?: string }) =>
+    post<any>("/notifications/push/unsubscribe", data),
+
+  getPushStatus: (params: {
+    endpoint: string;
+    appointmentId?: string;
+    doctorId?: string;
+    serialNumber?: number;
+  }) => {
+    const q = new URLSearchParams({ endpoint: params.endpoint });
+    if (params.appointmentId) q.set("appointmentId", params.appointmentId);
+    if (params.doctorId) q.set("doctorId", params.doctorId);
+    if (typeof params.serialNumber === "number") {
+      q.set("serialNumber", String(params.serialNumber));
+    }
+    return get<{ subscribed: boolean; serialNumber?: number }>(
+      `/notifications/push/status?${q.toString()}`
+    );
+  },
+
+  getEmailConfig: () => get<any>("/notifications/email-config"),
+
+  updateEmailConfig: (data: unknown) => put<any>("/notifications/email-config", data),
+
+  sendTestEmail: (to: string) => post<any>("/notifications/test-email", { to }),
+};
+
+// ---------------------------------------------------------------------------
 // Convenience default export
 // ---------------------------------------------------------------------------
 
@@ -415,6 +459,7 @@ const api = {
   dashboard,
   upload,
   ai,
+  notifications,
 };
 
 export default api;

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -15,14 +16,17 @@ import { TestimonialsModule } from './testimonials/testimonials.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { UploadModule } from './upload/upload.module';
 import { AiModule } from './ai/ai.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     PrismaModule,
+    NotificationsModule,
     AuthModule,
     DoctorsModule,
     AppointmentsModule,

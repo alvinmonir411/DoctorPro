@@ -6,8 +6,11 @@ export class SettingsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(group?: string) {
+    if (group === 'secret') {
+      return { list: [], map: {} };
+    }
     const list = await this.prisma.settings.findMany({
-      where: group ? { group } : undefined,
+      where: group ? { group } : { group: { not: 'secret' } },
     });
     // Transform into key-value map and full list
     const map: Record<string, string> = {};
@@ -18,7 +21,11 @@ export class SettingsService {
   }
 
   async findByKey(key: string) {
-    return this.prisma.settings.findUnique({ where: { key } });
+    const item = await this.prisma.settings.findUnique({ where: { key } });
+    if (item?.group === 'secret') {
+      return null;
+    }
+    return item;
   }
 
   async set(key: string, value: string, group = 'general') {

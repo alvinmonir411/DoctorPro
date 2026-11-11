@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { doctors as doctorsApi, appointments as appsApi } from "@/lib/api";
 import { toast } from "sonner";
+import { NotifyTurnButton } from "@/components/public/NotifyTurnButton";
 
 function AppointmentContent() {
   const searchParams = useSearchParams();
@@ -244,6 +245,14 @@ function AppointmentContent() {
                   )}
                 </div>
               </div>
+
+              <NotifyTurnButton
+                appointmentId={successBooking?.id}
+                doctorId={selectedDoctorId}
+                doctorName={selectedDoctor?.name}
+                patientPhone={patientPhone}
+                serialNumber={successBooking?.serialNumber || 1}
+              />
 
               <div className="pt-2 flex flex-col gap-2.5">
                 <Button asChild className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-sm text-xs">
@@ -511,7 +520,7 @@ function AppointmentContent() {
                   </Button>
 
                   <p className="text-[11px] text-muted-foreground text-center">
-                    By confirming, you agree to receive consultation updates via phone call/SMS.
+                    After confirming, you can turn on free browser push alerts (&quot;Notify My Turn&quot;) and receive updates via email.
                   </p>
                 </div>
               </CardContent>

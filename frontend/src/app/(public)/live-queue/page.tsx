@@ -28,6 +28,7 @@ import {
 import { appointments as appsApi, doctors as docsApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
 import { toast } from "sonner";
+import { NotifyTurnButton } from "@/components/public/NotifyTurnButton";
 
 function LiveQueueContent() {
   const searchParams = useSearchParams();
@@ -288,8 +289,25 @@ function LiveQueueContent() {
                   </span>
                 </div>
               </div>
+
+              <NotifyTurnButton
+                appointmentId={myQueue.appointmentId}
+                doctorId={doctor?.id}
+                doctorName={doctor?.name}
+                patientPhone={myQueue.patientPhone || phoneInput}
+                serialNumber={myQueue.yourSerial}
+              />
             </CardContent>
           </Card>
+        )}
+
+        {!myQueue && doctor && (
+          <NotifyTurnButton
+            doctorId={doctor.id}
+            doctorName={doctor.name}
+            patientPhone={phoneInput || undefined}
+            allowSerialInput
+          />
         )}
 
         {/* ─── Doctor & Chamber Information Card ─── */}

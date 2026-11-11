@@ -148,25 +148,50 @@ model Patient {
 }
 
 model Appointment {
-  id           String   @id @default(uuid())
-  patientId    String
-  doctorId     String
-  date         DateTime
-  timeSlot     String   // "09:00-09:30"
-  serialNumber Int?     // Assigned queue token serial (1, 2, 3...)
-  status       String   @default("PENDING") // PENDING | CONFIRMED | SERVING | COMPLETED | CANCELLED
-  type         String   @default("NEW") // NEW | FOLLOW_UP
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(uuid())
+  patientId       String
+  doctorId        String
+  date            DateTime
+  timeSlot        String   // "09:00-09:30"
+  serialNumber    Int?     // Assigned queue token serial (1, 2, 3...)
+  status          String   @default("PENDING") // PENDING | CONFIRMED | SERVING | COMPLETED | CANCELLED
+  type            String   @default("NEW") // NEW | FOLLOW_UP
+  notes           String?
+  reminder24hSent Boolean  @default(false)
+  reminder2hSent  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  patient Patient @relation(fields: [patientId], references: [id])
-  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+  patient           Patient            @relation(fields: [patientId], references: [id])
+  doctor            Doctor             @relation(fields: [doctorId], references: [id])
+  pushSubscriptions PushSubscription[]
 
   @@index([patientId])
   @@index([doctorId])
   @@index([date])
   @@index([status])
+  @@index([serialNumber])
+}
+
+model PushSubscription {
+  id                 String   @id @default(uuid())
+  endpoint           String   @unique
+  p256dh             String
+  auth               String
+  appointmentId      String?
+  doctorId           String?
+  patientPhone       String?
+  serialNumber       Int?
+  userAgent          String?
+  lastNotifiedSerial Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@index([doctorId])
+  @@index([patientPhone])
   @@index([serialNumber])
 }
 
