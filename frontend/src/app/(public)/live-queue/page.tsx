@@ -29,6 +29,7 @@ import { appointments as appsApi, doctors as docsApi } from "@/lib/api";
 import { getMediaUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { NotifyTurnButton } from "@/components/public/NotifyTurnButton";
+import { DoctorSearchSelect } from "@/components/public/DoctorSearchSelect";
 
 function LiveQueueContent() {
   const searchParams = useSearchParams();
@@ -56,9 +57,7 @@ function LiveQueueContent() {
         const res = await docsApi.getAll("activeOnly=true");
         if (Array.isArray(res) && res.length > 0) {
           setDoctorsList(res);
-          if (!selectedDoctorId) {
-            setSelectedDoctorId(res[0].id);
-          }
+          setSelectedDoctorId((prev) => prev || urlDoctorId || res[0].id);
         }
       } catch (err: any) {
         console.error("Failed to load doctors", err);
@@ -68,7 +67,7 @@ function LiveQueueContent() {
       }
     }
     loadDoctors();
-  }, [selectedDoctorId]);
+  }, [urlDoctorId]);
 
   // Fetch live queue data
   const fetchQueue = useCallback(async (isSilent = false) => {
@@ -143,24 +142,19 @@ function LiveQueueContent() {
         </div>
 
         {/* Search & Doctor Selection Card */}
-        <Card className="rounded-3xl border shadow-sm bg-card p-5 sm:p-6 space-y-4">
+        <Card className="relative z-20 rounded-3xl border shadow-sm bg-card p-5 sm:p-6 space-y-4">
           <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             {/* Select Doctor Chamber */}
             <div className="md:col-span-4 space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Stethoscope className="h-3.5 w-3.5 text-primary" /> Select Doctor Chamber
               </Label>
-              <select
+              <DoctorSearchSelect
+                doctors={doctorsList}
                 value={selectedDoctorId}
-                onChange={(e) => setSelectedDoctorId(e.target.value)}
-                className="w-full h-11 px-3 bg-background border rounded-2xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                {doctorsList.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    Dr. {d.name} ({d.specialization})
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedDoctorId}
+                placeholder="Search doctor name or specialty..."
+              />
             </div>
 
             {/* Enter Patient Phone */}
