@@ -67,7 +67,7 @@ export class CreateAppointmentDto {
 export class UpdateAppointmentDto {
   @IsOptional()
   @IsString()
-  status?: string; // PENDING | CONFIRMED | COMPLETED | CANCELLED
+  status?: string; // PENDING | CONFIRMED | SERVING | COMPLETED | ABSENT | CANCELLED
 
   @IsOptional()
   @IsString()

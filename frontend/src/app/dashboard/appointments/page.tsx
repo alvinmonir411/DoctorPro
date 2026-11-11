@@ -14,6 +14,7 @@ import {
   FileText,
   User,
   Phone,
+  UserX,
 } from "lucide-react";
 import { appointments as appsApi, doctors as doctorsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -34,6 +35,7 @@ export default function AdminAppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [doctorFilter, setDoctorFilter] = useState("ALL");
+  const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
 
   const loadData = async () => {
@@ -120,13 +122,24 @@ export default function AdminAppointmentsPage() {
 
   const filtered = appointmentsList.filter((app) => {
     const appStatus = (app.status || "").toUpperCase();
+    const appDateStr = app.date ? new Date(app.date).toISOString().split("T")[0] : "";
     const matchesStatus = statusFilter === "ALL" || appStatus === statusFilter;
     const matchesDoc = doctorFilter === "ALL" || app.doctorId === doctorFilter;
+    const matchesDate = !dateFilter || appDateStr === dateFilter;
+    const q = search.trim().toLowerCase();
+    const serialStr = app.serialNumber ? `#${app.serialNumber}` : "";
     const matchesSearch =
-      !search ||
-      (app.patient?.name && app.patient.name.toLowerCase().includes(search.toLowerCase())) ||
-      (app.patient?.phone && app.patient.phone.includes(search));
-    return matchesStatus && matchesDoc && matchesSearch;
+      !q ||
+      (app.patient?.name && app.patient.name.toLowerCase().includes(q)) ||
+      (app.patient?.phone && app.patient.phone.toLowerCase().includes(q)) ||
+      (app.patient?.email && app.patient.email.toLowerCase().includes(q)) ||
+      (app.patient?.address && app.patient.address.toLowerCase().includes(q)) ||
+      (app.notes && app.notes.toLowerCase().includes(q)) ||
+      (app.timeSlot && app.timeSlot.toLowerCase().includes(q)) ||
+      (app.doctor?.name && app.doctor.name.toLowerCase().includes(q)) ||
+      serialStr.toLowerCase().includes(q) ||
+      appDateStr.includes(q);
+    return matchesStatus && matchesDoc && matchesDate && matchesSearch;
   });
 
   return (
@@ -151,18 +164,57 @@ export default function AdminAppointmentsPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-card border">
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by patient name or phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl"
-          />
+      <div className="flex flex-col gap-3 p-4 rounded-2xl bg-card border">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="relative w-full md:flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search patient name, phone, email, serial #, notes, date..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-10 rounded-xl"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex items-center">
+              <Calendar className="h-4 w-4 text-muted-foreground absolute left-3 pointer-events-none" />
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="pl-9 h-10 rounded-xl w-44 text-xs"
+                aria-label="Filter appointments by date"
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const now = new Date();
+                const todayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+                setDateFilter(dateFilter === todayYmd ? "" : todayYmd);
+              }}
+              className="h-10 rounded-xl text-xs"
+            >
+              Today
+            </Button>
+            {dateFilter && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setDateFilter("")}
+                className="h-10 rounded-xl text-xs text-muted-foreground"
+              >
+                Clear Date
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Status buttons */}
           <div className="flex flex-wrap items-center gap-1 bg-muted p-1 rounded-xl text-xs">
             {APPOINTMENT_STATUS_FILTERS.map((st) => (
@@ -254,16 +306,36 @@ export default function AdminAppointmentsPage() {
                             </Button>
                           )}
                           {["PENDING", "CONFIRMED", "SERVING"].includes((app.status || "").toUpperCase()) && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateStatus(app.id, "COMPLETED")}
+                                className="h-7 text-[11px] text-blue-600 border-blue-300 hover:bg-blue-50"
+                              >
+                                Complete
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateStatus(app.id, "ABSENT")}
+                                className="h-7 text-[11px] text-orange-700 border-orange-300 hover:bg-orange-50"
+                              >
+                                <UserX className="mr-1 h-3 w-3" /> Absent
+                              </Button>
+                            </>
+                          )}
+                          {(app.status || "").toUpperCase() === "ABSENT" && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleUpdateStatus(app.id, "COMPLETED")}
-                              className="h-7 text-[11px] text-blue-600 border-blue-300 hover:bg-blue-50"
+                              onClick={() => handleUpdateStatus(app.id, "CONFIRMED")}
+                              className="h-7 text-[11px] text-emerald-600 border-emerald-300 hover:bg-emerald-50"
                             >
-                              Complete
+                              Re-Confirm
                             </Button>
                           )}
-                          {!["CANCELLED", "COMPLETED"].includes((app.status || "").toUpperCase()) && (
+                          {!["CANCELLED", "COMPLETED", "ABSENT"].includes((app.status || "").toUpperCase()) && (
                             <Button
                               size="sm"
                               variant="ghost"

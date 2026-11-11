@@ -275,6 +275,8 @@ function LiveQueueContent() {
                     ? "bg-emerald-500 text-white animate-pulse"
                     : myQueue.isNext
                     ? "bg-amber-500 text-white"
+                    : myQueue.isAbsent
+                    ? "bg-orange-100 text-orange-950 border border-orange-300"
                     : myQueue.isCompleted
                     ? "bg-slate-800 text-white"
                     : "bg-teal-50 text-teal-900 border border-teal-200"
@@ -284,6 +286,8 @@ function LiveQueueContent() {
                   <Volume2 className="h-6 w-6 shrink-0" />
                 ) : myQueue.isNext ? (
                   <Flame className="h-6 w-6 shrink-0" />
+                ) : myQueue.isAbsent ? (
+                  <AlertCircle className="h-6 w-6 shrink-0 text-orange-600" />
                 ) : (
                   <Clock className="h-6 w-6 shrink-0 text-teal-600" />
                 )}
@@ -325,6 +329,10 @@ function LiveQueueContent() {
                   <span className="text-[11px] text-primary-foreground/90">
                     {myQueue.isCurrentlyServing
                       ? "In Consultation Room"
+                      : myQueue.isAbsent
+                      ? "Marked Absent (Missed)"
+                      : myQueue.isCompleted
+                      ? "Consultation Completed"
                       : myQueue.isNext
                       ? "Next In Line"
                       : `${myQueue.patientsAhead} Patient(s) Ahead`}
@@ -337,7 +345,11 @@ function LiveQueueContent() {
                     Estimated Wait Time
                   </span>
                   <div className="text-3xl sm:text-4xl font-black text-foreground py-1">
-                    {myQueue.isCurrentlyServing ? "0 min" : `~${myQueue.estimatedWaitMinutes} min`}
+                    {myQueue.isCurrentlyServing
+                      ? "0 min"
+                      : myQueue.isAbsent
+                      ? "Absent"
+                      : `~${myQueue.estimatedWaitMinutes} min`}
                   </div>
                   <span className="text-[11px] text-muted-foreground">
                     Based on {doctor?.slotDuration || 15}m slot duration
@@ -483,6 +495,10 @@ function LiveQueueContent() {
                                   {item.isServing ? (
                                     <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] animate-pulse">
                                       ● Now Inside Room
+                                    </Badge>
+                                  ) : item.isAbsent ? (
+                                    <Badge variant="secondary" className="text-[10px] bg-orange-100 text-orange-800 border border-orange-200">
+                                      Absent
                                     </Badge>
                                   ) : item.isCompleted ? (
                                     <Badge variant="secondary" className="text-[10px] text-muted-foreground">

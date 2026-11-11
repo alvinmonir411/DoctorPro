@@ -211,8 +211,20 @@ export const appointments = {
 // ---------------------------------------------------------------------------
 
 export const patients = {
-  getAll: (params?: string) =>
-    get<unknown>(`/patients${params ? `?${params}` : ""}`),
+  getAll: (
+    params?: string | { search?: string; date?: string; status?: string },
+  ) => {
+    if (!params) return get<unknown>("/patients");
+    if (typeof params === "string") return get<unknown>(`/patients?${params}`);
+    const q = new URLSearchParams();
+    if (params.search?.trim()) q.set("search", params.search.trim());
+    if (params.date?.trim()) q.set("date", params.date.trim());
+    if (params.status?.trim() && params.status !== "ALL") {
+      q.set("status", params.status.trim());
+    }
+    const qs = q.toString();
+    return get<unknown>(`/patients${qs ? `?${qs}` : ""}`);
+  },
 
   getById: (id: string) => get<unknown>(`/patients/${id}`),
 

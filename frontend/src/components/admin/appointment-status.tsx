@@ -14,6 +14,11 @@ const STATUS_CONFIG: Record<string, { label: string; className?: string; variant
     label: "Completed",
     className: "bg-blue-500 hover:bg-blue-600 text-white text-[10px]",
   },
+  ABSENT: {
+    label: "Absent",
+    variant: "secondary",
+    className: "bg-orange-100 text-orange-800 border border-orange-200 text-[10px]",
+  },
   CANCELLED: {
     label: "Cancelled",
     variant: "destructive",
@@ -32,6 +37,7 @@ export const APPOINTMENT_STATUS_FILTERS = [
   "CONFIRMED",
   "SERVING",
   "COMPLETED",
+  "ABSENT",
   "CANCELLED",
 ] as const;
 

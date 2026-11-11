@@ -450,6 +450,9 @@ export class NotificationsService implements OnModuleInit {
     } else if (appointment.status === 'CANCELLED') {
       pushTitle = `Appointment Cancelled (#${serial})`;
       pushBody = `Your appointment with ${doctorName} on ${dateStr} has been cancelled.`;
+    } else if (appointment.status === 'ABSENT') {
+      pushTitle = `Missed Turn / Marked Absent (#${serial})`;
+      pushBody = `You were marked as Absent for your appointment with ${doctorName} on ${dateStr}. Please contact the clinic desk to reschedule.`;
     } else if (appointment.status === 'COMPLETED') {
       pushTitle = `Visit Completed — DoctorPro`;
       pushBody = `Thank you for visiting ${doctorName}. Wishing you a speedy recovery!`;

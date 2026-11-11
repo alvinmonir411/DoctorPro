@@ -14,7 +14,7 @@ datasource db {
 // ─── Enums (SQLite doesn't support native enums, we use string fields) ───
 
 // Role: ADMIN | DOCTOR | PATIENT
-// AppointmentStatus: PENDING | CONFIRMED | COMPLETED | CANCELLED
+// AppointmentStatus: PENDING | CONFIRMED | SERVING | COMPLETED | ABSENT | CANCELLED
 // AppointmentType: NEW | FOLLOW_UP
 // Gender: MALE | FEMALE | OTHER
 
@@ -174,7 +174,7 @@ model Appointment {
   date            DateTime
   timeSlot        String   // "09:00-09:30"
   serialNumber    Int?     // Assigned queue token serial (1, 2, 3...)
-  status          String   @default("PENDING") // PENDING | CONFIRMED | SERVING | COMPLETED | CANCELLED
+  status          String   @default("PENDING") // PENDING | CONFIRMED | SERVING | COMPLETED | ABSENT | CANCELLED
   type            String   @default("NEW") // NEW | FOLLOW_UP
   notes           String?
   reminder24hSent Boolean  @default(false)

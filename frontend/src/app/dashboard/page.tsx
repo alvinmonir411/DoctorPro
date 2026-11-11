@@ -27,6 +27,7 @@ import {
   Send,
   KeyRound,
   RotateCcw,
+  UserX,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -165,6 +166,8 @@ export default function AdminDashboardPage() {
             ? "Chamber serial queue reset to #0."
             : action === "COMPLETE_CURRENT"
             ? "Marked current serial as completed."
+            : action === "ABSENT_CURRENT"
+            ? "Marked current serial as absent (no-show)."
             : doctorProfile?.chamberStatus === "BREAK"
             ? "Chamber resumed."
             : "Chamber paused for break.",
@@ -410,19 +413,22 @@ export default function AdminDashboardPage() {
               const maxSerialToday = manageQueue?.stats?.maxSerialToday || 0;
               const totalBookedToday = manageQueue?.stats?.totalPatientsToday || 0;
               const completedCount = manageQueue?.stats?.completedCount || 0;
+              const absentCount = manageQueue?.stats?.absentCount || 0;
               const remainingCount =
-                manageQueue?.stats?.remainingCount ?? Math.max(0, totalBookedToday - completedCount);
+                manageQueue?.stats?.remainingCount ??
+                Math.max(0, totalBookedToday - completedCount - absentCount);
               const nextPendingSerial: number | null =
                 manageQueue?.stats?.nextPendingSerial ?? null;
               const canCallNext = Boolean(nextPendingSerial);
               const activeCurrentItem = Array.isArray(manageQueue?.queueList)
                 ? manageQueue.queueList.find((q: any) => q.serialNumber === currentServing)
                 : null;
-              const canCompleteCurrent =
+              const canActOnCurrent =
                 currentServing > 0 &&
                 currentServing <= maxSerialToday &&
                 activeCurrentItem &&
-                activeCurrentItem.status !== "COMPLETED";
+                activeCurrentItem.status !== "COMPLETED" &&
+                activeCurrentItem.status !== "ABSENT";
 
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
@@ -438,8 +444,8 @@ export default function AdminDashboardPage() {
                       {doctorProfile?.chamberStatus === "BREAK"
                         ? "Clinic Paused / Break"
                         : currentServing === 0
-                        ? completedCount > 0
-                          ? `Ready • ${completedCount} seen, ${remainingCount} remaining`
+                        ? completedCount > 0 || absentCount > 0
+                          ? `Ready • ${completedCount} seen${absentCount > 0 ? `, ${absentCount} absent` : ""} • ${remainingCount} remaining`
                           : `Ready (${totalBookedToday} booked today)`
                         : `Inside Consultation Room • ${remainingCount} remaining`}
                     </span>
@@ -462,7 +468,7 @@ export default function AdminDashboardPage() {
                         ? "No booked appointments today"
                         : nextPendingSerial
                         ? `Waiting outside (${remainingCount} remaining of ${totalBookedToday})`
-                        : `All ${totalBookedToday} patient(s) completed/called`}
+                        : `All ${totalBookedToday} patient(s) completed/marked`}
                     </span>
                   </div>
 
@@ -477,19 +483,31 @@ export default function AdminDashboardPage() {
                       {totalBookedToday === 0
                         ? "No Bookings Today (0)"
                         : !nextPendingSerial
-                        ? `All ${totalBookedToday} Seen / Called`
+                        ? `All ${totalBookedToday} Seen / Marked`
                         : `Call Next Patient (#${nextPendingSerial} • ${remainingCount} left)`}
                     </Button>
-                    {canCompleteCurrent && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAdvanceQueue("COMPLETE_CURRENT")}
-                        disabled={advancingQueue}
-                        className="h-8 text-xs rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50 font-semibold"
-                      >
-                        <Check className="mr-1 h-3.5 w-3.5" /> Complete Current (#{currentServing})
-                      </Button>
+                    {canActOnCurrent && (
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAdvanceQueue("COMPLETE_CURRENT")}
+                          disabled={advancingQueue}
+                          className="flex-1 h-8 text-[11px] rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50 font-semibold"
+                        >
+                          <Check className="mr-1 h-3.5 w-3.5" /> Complete #{currentServing}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAdvanceQueue("ABSENT_CURRENT")}
+                          disabled={advancingQueue}
+                          className="flex-1 h-8 text-[11px] rounded-xl text-orange-700 border-orange-200 hover:bg-orange-50 font-semibold"
+                          title="Mark current patient as Absent (Did not show up)"
+                        >
+                          <UserX className="mr-1 h-3.5 w-3.5" /> Absent #{currentServing}
+                        </Button>
+                      </div>
                     )}
                     <div className="flex items-center gap-2">
                       <Button
@@ -960,16 +978,36 @@ export default function AdminDashboardPage() {
                             </Button>
                           )}
                           {["PENDING", "CONFIRMED", "SERVING"].includes((app.status || "").toUpperCase()) && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateStatus(app.id, "COMPLETED")}
+                                className="h-7 text-[11px] text-blue-600 border-blue-300 hover:bg-blue-50"
+                              >
+                                Complete
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateStatus(app.id, "ABSENT")}
+                                className="h-7 text-[11px] text-orange-700 border-orange-300 hover:bg-orange-50"
+                              >
+                                <UserX className="mr-1 h-3 w-3" /> Absent
+                              </Button>
+                            </>
+                          )}
+                          {(app.status || "").toUpperCase() === "ABSENT" && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleUpdateStatus(app.id, "COMPLETED")}
-                              className="h-7 text-[11px] text-blue-600 border-blue-300 hover:bg-blue-50"
+                              onClick={() => handleUpdateStatus(app.id, "CONFIRMED")}
+                              className="h-7 text-[11px] text-emerald-600 border-emerald-300 hover:bg-emerald-50"
                             >
-                              Complete
+                              Re-Confirm
                             </Button>
                           )}
-                          {!["CANCELLED", "COMPLETED"].includes((app.status || "").toUpperCase()) && (
+                          {!["CANCELLED", "COMPLETED", "ABSENT"].includes((app.status || "").toUpperCase()) && (
                             <Button
                               size="sm"
                               variant="ghost"

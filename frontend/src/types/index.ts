@@ -13,7 +13,9 @@ export enum UserRole {
 export enum AppointmentStatus {
   PENDING = "PENDING",
   CONFIRMED = "CONFIRMED",
+  SERVING = "SERVING",
   COMPLETED = "COMPLETED",
+  ABSENT = "ABSENT",
   CANCELLED = "CANCELLED",
   NO_SHOW = "NO_SHOW",
 }

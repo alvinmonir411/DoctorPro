@@ -151,9 +151,7 @@ export class AppointmentsService {
 
     let dateFilter: any = undefined;
     if (date) {
-      const d = new Date(date);
-      const startOfDay = new Date(d.setHours(0, 0, 0, 0));
-      const endOfDay = new Date(d.setHours(23, 59, 59, 999));
+      const { startOfDay, endOfDay } = this.getDayWindow(date);
       dateFilter = { gte: startOfDay, lte: endOfDay };
     } else if (startDate || endDate) {
       dateFilter = {};
@@ -304,10 +302,7 @@ export class AppointmentsService {
     }
 
     // Check booked appointments on that date
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { startOfDay, endOfDay } = this.getDayWindow(dateStr);
 
     const booked = await this.prisma.appointment.findMany({
       where: {
@@ -335,6 +330,13 @@ export class AppointmentsService {
   // ─── Real-Time Chamber Queue & Live Serial Tracking ───
 
   private getDayWindow(dateInput?: string | Date) {
+    if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+      const trimmed = dateInput.trim();
+      return {
+        startOfDay: new Date(`${trimmed}T00:00:00.000Z`),
+        endOfDay: new Date(`${trimmed}T23:59:59.999Z`),
+      };
+    }
     const base = dateInput ? new Date(dateInput) : new Date();
     const startOfDay = new Date(base);
     startOfDay.setHours(0, 0, 0, 0);
@@ -524,12 +526,17 @@ export class AppointmentsService {
       serial: a.serialNumber || idx + 1,
     }));
     const remainingAppts = normalizedAppts.filter(
-      (x) => x.appt.status !== 'COMPLETED',
+      (x) => x.appt.status !== 'COMPLETED' && x.appt.status !== 'ABSENT',
     );
-    const completedCount = normalizedAppts.length - remainingAppts.length;
+    const completedCount = normalizedAppts.filter(
+      (x) => x.appt.status === 'COMPLETED',
+    ).length;
+    const absentCount = normalizedAppts.filter(
+      (x) => x.appt.status === 'ABSENT',
+    ).length;
     const remainingCount = remainingAppts.length;
 
-    // Find who is currently serving (never treat a COMPLETED row as actively consulting)
+    // Find who is currently serving (never treat COMPLETED or ABSENT rows as actively consulting)
     const currentlyServingEntry =
       currentServingSerial > 0
         ? remainingAppts.find(
@@ -542,7 +549,8 @@ export class AppointmentsService {
       currentServingSerial > 0 &&
       serial === currentServingSerial &&
       chamberStatus === 'ACTIVE' &&
-      status !== 'COMPLETED';
+      status !== 'COMPLETED' &&
+      status !== 'ABSENT';
 
     const waitingCount = remainingAppts.filter(
       (x) => !isEntryServing(x.serial, x.appt.status),
@@ -560,6 +568,7 @@ export class AppointmentsService {
     let isCurrentlyServing = false;
     let isNext = false;
     let isCompleted = false;
+    let isAbsent = false;
 
     if (myAppointment) {
       // If no serialNumber was explicitly assigned, find index + 1
@@ -570,6 +579,10 @@ export class AppointmentsService {
 
       if (myAppointment.status === 'COMPLETED') {
         isCompleted = true;
+        patientsAhead = 0;
+        estimatedWaitMinutes = 0;
+      } else if (myAppointment.status === 'ABSENT') {
+        isAbsent = true;
         patientsAhead = 0;
         estimatedWaitMinutes = 0;
       } else if (
@@ -593,7 +606,7 @@ export class AppointmentsService {
           isNext = true;
         }
       } else {
-        // Queue at #0 (not started yet or reset while preserving COMPLETED appointments):
+        // Queue at #0 (not started yet or reset while preserving COMPLETED/ABSENT records):
         // Count ONLY remaining unseen patients before me
         const unseenBeforeMe = remainingAppts.filter(
           (x) => x.serial < mySerial,
@@ -620,6 +633,7 @@ export class AppointmentsService {
         maskedName,
         isServing: isEntryServing(serial, a.status),
         isCompleted: a.status === 'COMPLETED',
+        isAbsent: a.status === 'ABSENT',
       };
     });
 
@@ -652,6 +666,7 @@ export class AppointmentsService {
         totalPatientsToday,
         maxSerialToday,
         completedCount,
+        absentCount,
         remainingCount,
         waitingCount,
         nextPendingSerial,
@@ -669,12 +684,15 @@ export class AppointmentsService {
             isCurrentlyServing,
             isNext,
             isCompleted,
+            isAbsent,
             message: isCurrentlyServing
               ? '🟢 You are currently in consultation with the doctor!'
               : isNext
               ? '🔥 You are NEXT in line! Please stand by near the chamber.'
               : isCompleted
               ? '✓ Consultation completed.'
+              : isAbsent
+              ? '⚠ Marked as Absent (No-Show). Please contact the clinic desk to reschedule.'
               : `${patientsAhead} patient(s) ahead of you. Estimated wait: ~${estimatedWaitMinutes} minutes.`,
           }
         : null,
@@ -734,28 +752,29 @@ export class AppointmentsService {
         );
       }
 
-      // Skip already-COMPLETED appointments and call the next unseen patient after current serial
+      // Skip already-COMPLETED and ABSENT appointments and call the next unseen patient after current serial
       const nextCandidate = normalizedToday.find(
         (a) =>
           a.status !== 'COMPLETED' &&
+          a.status !== 'ABSENT' &&
           a.status !== 'SERVING' &&
           a.effectiveSerial > nextSerial,
       );
 
       if (!nextCandidate) {
         throw new BadRequestException(
-          'All remaining booked patients for today have already been called or completed.',
+          'All remaining booked patients for today have already been called, completed, or marked absent.',
         );
       }
 
-      // Mark current serving appointment (if any and not completed) as COMPLETED
+      // Mark current serving appointment (if any and not completed/absent) as COMPLETED
       if (nextSerial > 0) {
         await this.prisma.appointment.updateMany({
           where: {
             doctorId: effectiveDoctorId,
             date: { gte: startOfDay, lte: endOfDay },
             OR: [{ serialNumber: nextSerial }, { status: 'SERVING' }],
-            status: { notIn: ['CANCELLED', 'COMPLETED'] },
+            status: { notIn: ['CANCELLED', 'COMPLETED', 'ABSENT'] },
           },
           data: { status: 'COMPLETED' },
         });
@@ -776,9 +795,21 @@ export class AppointmentsService {
             doctorId: effectiveDoctorId,
             date: { gte: startOfDay, lte: endOfDay },
             OR: [{ serialNumber: nextSerial }, { status: 'SERVING' }],
-            status: { not: 'CANCELLED' },
+            status: { notIn: ['CANCELLED', 'ABSENT'] },
           },
           data: { status: 'COMPLETED' },
+        });
+      }
+    } else if (action === 'ABSENT_CURRENT') {
+      if (nextSerial > 0) {
+        await this.prisma.appointment.updateMany({
+          where: {
+            doctorId: effectiveDoctorId,
+            date: { gte: startOfDay, lte: endOfDay },
+            OR: [{ serialNumber: nextSerial }, { status: 'SERVING' }],
+            status: { notIn: ['CANCELLED', 'COMPLETED'] },
+          },
+          data: { status: 'ABSENT' },
         });
       }
     } else if (action === 'PREV') {
@@ -795,11 +826,14 @@ export class AppointmentsService {
         });
       }
 
-      // Step back only to an unseen (non-COMPLETED) earlier appointment, or #0 if earlier ones were already seen
+      // Step back only to an unseen (non-COMPLETED, non-ABSENT) earlier appointment, or #0
       const prevUnseen = [...normalizedToday]
         .reverse()
         .find(
-          (a) => a.status !== 'COMPLETED' && a.effectiveSerial < currentBeforeStep,
+          (a) =>
+            a.status !== 'COMPLETED' &&
+            a.status !== 'ABSENT' &&
+            a.effectiveSerial < currentBeforeStep,
         );
 
       nextSerial = prevUnseen ? prevUnseen.effectiveSerial : 0;
@@ -812,7 +846,7 @@ export class AppointmentsService {
     } else if (action === 'RESET') {
       nextSerial = 0;
       nextStatus = 'ACTIVE';
-      // IMPORTANT: Never revert already COMPLETED appointments — only unset currently SERVING (not yet completed)
+      // IMPORTANT: Never revert COMPLETED or ABSENT appointments — only unset currently SERVING (not yet completed)
       await this.prisma.appointment.updateMany({
         where: {
           doctorId: effectiveDoctorId,
@@ -836,7 +870,11 @@ export class AppointmentsService {
       include: { department: true },
     });
 
-    if (action !== 'RESET' && action !== 'COMPLETE_CURRENT') {
+    if (
+      action !== 'RESET' &&
+      action !== 'COMPLETE_CURRENT' &&
+      action !== 'ABSENT_CURRENT'
+    ) {
       this.notifications
         .notifyQueueTurnUpdates(updatedDoctor, nextSerial, nextStatus)
         .catch(() => {});

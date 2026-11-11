@@ -23,35 +23,182 @@ export class PatientsService {
     });
   }
 
-  async findAll(search?: string, currentUser?: ScopedRequestUser) {
-    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
-    const searchFilter = search
-      ? {
-          OR: [
-            { name: { contains: search } },
-            { phone: { contains: search } },
-            { email: { contains: search } },
-          ],
-        }
-      : undefined;
+  private parseUtcDateBounds(dateStr?: string) {
+    const trimmed = dateStr?.trim();
+    if (!trimmed) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return {
+        startOfDay: new Date(`${trimmed}T00:00:00.000Z`),
+        endOfDay: new Date(`${trimmed}T23:59:59.999Z`),
+      };
+    }
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const startOfDay = new Date(parsed);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(parsed);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+    return { startOfDay, endOfDay };
+  }
 
-    const where = scopedDoctorId
-      ? {
-          AND: [
-            ...(searchFilter ? [searchFilter] : []),
-            { appointments: { some: { doctorId: scopedDoctorId } } },
-          ],
-        }
-      : searchFilter;
+  async findAll(
+    query?: string | { search?: string; date?: string; status?: string },
+    currentUser?: ScopedRequestUser,
+  ) {
+    const params =
+      typeof query === 'string' ? { search: query } : query || {};
+    const scopedDoctorId = await resolveScopedDoctorId(this.prisma, currentUser);
+
+    const cleanSearch = params.search?.trim() || '';
+    const dateBounds = this.parseUtcDateBounds(params.date);
+    const upperStatus = params.status?.trim().toUpperCase() || '';
+
+    const statusClause =
+      !upperStatus || upperStatus === 'ALL'
+        ? undefined
+        : upperStatus === 'ACTIVE'
+        ? { in: ['PENDING', 'CONFIRMED', 'SERVING'] }
+        : upperStatus;
+
+    const appointmentScope: any = {
+      ...(scopedDoctorId ? { doctorId: scopedDoctorId } : {}),
+      ...(dateBounds
+        ? { date: { gte: dateBounds.startOfDay, lte: dateBounds.endOfDay } }
+        : {}),
+      ...(statusClause ? { status: statusClause } : {}),
+    };
+
+    const hasApptFilter = Object.keys(appointmentScope).length > 0;
+
+    let searchFilter: any = undefined;
+    if (cleanSearch) {
+      const numericCandidate = /^#?\d+$/.test(cleanSearch)
+        ? Number(cleanSearch.replace(/^#/, ''))
+        : null;
+      const serialCandidate =
+        numericCandidate !== null &&
+        Number.isSafeInteger(numericCandidate) &&
+        numericCandidate > 0 &&
+        numericCandidate < 100000
+          ? numericCandidate
+          : null;
+      const searchDateBounds = /^\d{4}-\d{2}-\d{2}$/.test(cleanSearch)
+        ? this.parseUtcDateBounds(cleanSearch)
+        : null;
+
+      searchFilter = {
+        OR: [
+          { id: { contains: cleanSearch, mode: 'insensitive' } },
+          { name: { contains: cleanSearch, mode: 'insensitive' } },
+          { phone: { contains: cleanSearch, mode: 'insensitive' } },
+          { email: { contains: cleanSearch, mode: 'insensitive' } },
+          { address: { contains: cleanSearch, mode: 'insensitive' } },
+          { gender: { contains: cleanSearch, mode: 'insensitive' } },
+          { bloodGroup: { contains: cleanSearch, mode: 'insensitive' } },
+          {
+            appointments: {
+              some: {
+                ...appointmentScope,
+                notes: { contains: cleanSearch, mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            appointments: {
+              some: {
+                ...appointmentScope,
+                timeSlot: { contains: cleanSearch, mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            appointments: {
+              some: {
+                ...appointmentScope,
+                status: { contains: cleanSearch, mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            appointments: {
+              some: {
+                ...appointmentScope,
+                type: { contains: cleanSearch, mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            appointments: {
+              some: {
+                ...appointmentScope,
+                id: { contains: cleanSearch, mode: 'insensitive' },
+              },
+            },
+          },
+          {
+            appointments: {
+              some: {
+                ...appointmentScope,
+                doctor: { name: { contains: cleanSearch, mode: 'insensitive' } },
+              },
+            },
+          },
+          {
+            appointments: {
+              some: {
+                ...appointmentScope,
+                doctor: {
+                  specialization: { contains: cleanSearch, mode: 'insensitive' },
+                },
+              },
+            },
+          },
+          ...(serialCandidate !== null
+            ? [
+                {
+                  appointments: {
+                    some: { ...appointmentScope, serialNumber: serialCandidate },
+                  },
+                },
+              ]
+            : []),
+          ...(searchDateBounds
+            ? [
+                {
+                  appointments: {
+                    some: {
+                      ...appointmentScope,
+                      date: {
+                        gte: searchDateBounds.startOfDay,
+                        lte: searchDateBounds.endOfDay,
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+        ],
+      };
+    }
+
+    const andClauses: any[] = [];
+    if (searchFilter) andClauses.push(searchFilter);
+    if (hasApptFilter) {
+      andClauses.push({ appointments: { some: appointmentScope } });
+    }
+    const where = andClauses.length > 0 ? { AND: andClauses } : undefined;
 
     const patients = await this.prisma.patient.findMany({
       where,
       include: {
         appointments: {
-          where: scopedDoctorId ? { doctorId: scopedDoctorId } : undefined,
-          include: { doctor: true },
-          orderBy: { date: 'desc' },
-          take: scopedDoctorId ? undefined : 5,
+          where: hasApptFilter ? appointmentScope : undefined,
+          include: {
+            doctor: { select: { id: true, name: true, specialization: true } },
+          },
+          orderBy: dateBounds
+            ? [{ serialNumber: 'asc' }, { timeSlot: 'asc' }]
+            : [{ date: 'desc' }, { serialNumber: 'asc' }],
         },
         _count: {
           select: { appointments: true },
@@ -60,13 +207,26 @@ export class PatientsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    if (!scopedDoctorId) return patients;
+    return patients.map((pt) => {
+      const summary = pt.appointments.reduce(
+        (acc, a) => {
+          const st = (a.status || '').toUpperCase();
+          acc.total += 1;
+          if (st === 'COMPLETED') acc.completed += 1;
+          else if (st === 'ABSENT') acc.absent += 1;
+          else if (st === 'CANCELLED') acc.cancelled += 1;
+          else acc.active += 1;
+          return acc;
+        },
+        { total: 0, completed: 0, absent: 0, cancelled: 0, active: 0 },
+      );
 
-    return patients.map((pt) => ({
-      ...pt,
-      _count: { appointments: pt.appointments.length },
-      appointments: pt.appointments.slice(0, 5),
-    }));
+      return {
+        ...pt,
+        _count: { appointments: pt.appointments.length },
+        visitSummary: summary,
+      };
+    });
   }
 
   async findOne(id: string, currentUser?: ScopedRequestUser) {

@@ -27,8 +27,13 @@ export class PatientsController {
   }
 
   @Get()
-  findAll(@Req() req: any, @Query('search') search?: string) {
-    return this.patientsService.findAll(search, req.user);
+  findAll(
+    @Req() req: any,
+    @Query('search') search?: string,
+    @Query('date') date?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.patientsService.findAll({ search, date, status }, req.user);
   }
 
   @Get(':id')
