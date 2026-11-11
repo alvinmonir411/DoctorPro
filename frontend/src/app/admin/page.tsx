@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { dashboard as dashApi, appointments as appsApi, doctors as doctorsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { AppointmentStatusBadge } from "@/components/admin/appointment-status";
 import { toast } from "sonner";
 
 export default function AdminDashboardPage() {
@@ -153,19 +154,6 @@ export default function AdminDashboardPage() {
       toast.error("Failed to Update Appointment", {
         description: err?.message || "Could not update appointment status.",
       });
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "CONFIRMED":
-        return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px]">Confirmed</Badge>;
-      case "COMPLETED":
-        return <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-[10px]">Completed</Badge>;
-      case "CANCELLED":
-        return <Badge variant="destructive" className="text-[10px]">Cancelled</Badge>;
-      default:
-        return <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-[10px]">Pending Confirmation</Badge>;
     }
   };
 
@@ -535,10 +523,12 @@ export default function AdminDashboardPage() {
                         </span>{" "}
                         <span className="text-muted-foreground font-semibold">({app.timeSlot})</span>
                       </td>
-                      <td className="p-3">{getStatusBadge(app.status)}</td>
+                      <td className="p-3">
+                        <AppointmentStatusBadge status={app.status} />
+                      </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {app.status === "PENDING" && (
+                          {(app.status || "").toUpperCase() === "PENDING" && (
                             <Button
                               size="sm"
                               onClick={() => handleUpdateStatus(app.id, "CONFIRMED")}
@@ -547,7 +537,7 @@ export default function AdminDashboardPage() {
                               Approve / Confirm
                             </Button>
                           )}
-                          {app.status === "CONFIRMED" && (
+                          {["PENDING", "CONFIRMED", "SERVING"].includes((app.status || "").toUpperCase()) && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -557,7 +547,7 @@ export default function AdminDashboardPage() {
                               Complete
                             </Button>
                           )}
-                          {app.status !== "CANCELLED" && app.status !== "COMPLETED" && (
+                          {!["CANCELLED", "COMPLETED"].includes((app.status || "").toUpperCase()) && (
                             <Button
                               size="sm"
                               variant="ghost"

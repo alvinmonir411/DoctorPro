@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Calendar,
   Search,
@@ -18,6 +17,10 @@ import {
 } from "lucide-react";
 import { appointments as appsApi, doctors as doctorsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import {
+  AppointmentStatusBadge,
+  APPOINTMENT_STATUS_FILTERS,
+} from "@/components/admin/appointment-status";
 import { toast } from "sonner";
 
 export default function AdminAppointmentsPage() {
@@ -110,7 +113,8 @@ export default function AdminAppointmentsPage() {
   };
 
   const filtered = appointmentsList.filter((app) => {
-    const matchesStatus = statusFilter === "ALL" || app.status === statusFilter;
+    const appStatus = (app.status || "").toUpperCase();
+    const matchesStatus = statusFilter === "ALL" || appStatus === statusFilter;
     const matchesDoc = doctorFilter === "ALL" || app.doctorId === doctorFilter;
     const matchesSearch =
       !search ||
@@ -118,19 +122,6 @@ export default function AdminAppointmentsPage() {
       (app.patient?.phone && app.patient.phone.includes(search));
     return matchesStatus && matchesDoc && matchesSearch;
   });
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "CONFIRMED":
-        return <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px]">Confirmed</Badge>;
-      case "COMPLETED":
-        return <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-[10px]">Completed</Badge>;
-      case "CANCELLED":
-        return <Badge variant="destructive" className="text-[10px]">Cancelled</Badge>;
-      default:
-        return <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-[10px]">Pending</Badge>;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -167,8 +158,8 @@ export default function AdminAppointmentsPage() {
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Status buttons */}
-          <div className="flex items-center gap-1 bg-muted p-1 rounded-xl text-xs">
-            {["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((st) => (
+          <div className="flex flex-wrap items-center gap-1 bg-muted p-1 rounded-xl text-xs">
+            {APPOINTMENT_STATUS_FILTERS.map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
@@ -241,10 +232,12 @@ export default function AdminAppointmentsPage() {
                       <td className="p-3 text-muted-foreground max-w-xs truncate">
                         {app.notes || "—"}
                       </td>
-                      <td className="p-3">{getStatusBadge(app.status)}</td>
+                      <td className="p-3">
+                        <AppointmentStatusBadge status={app.status} />
+                      </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {app.status === "PENDING" && (
+                          {(app.status || "").toUpperCase() === "PENDING" && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -254,7 +247,7 @@ export default function AdminAppointmentsPage() {
                               Confirm
                             </Button>
                           )}
-                          {app.status === "CONFIRMED" && (
+                          {["PENDING", "CONFIRMED", "SERVING"].includes((app.status || "").toUpperCase()) && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -264,7 +257,7 @@ export default function AdminAppointmentsPage() {
                               Complete
                             </Button>
                           )}
-                          {app.status !== "CANCELLED" && app.status !== "COMPLETED" && (
+                          {!["CANCELLED", "COMPLETED"].includes((app.status || "").toUpperCase()) && (
                             <Button
                               size="sm"
                               variant="ghost"
