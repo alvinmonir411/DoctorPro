@@ -191,7 +191,7 @@ export default function DoctorAssistantsPage() {
             How Assistant Accounts Work:
           </p>
           <p className="leading-relaxed">
-            Assistants you add here will log in at the Staff Portal using their email and password. They are directly linked to your chamber and will only see your patient appointments, serial queues, and booking confirmations.
+            Assistants you add here will log in at <span className="font-mono font-semibold">/dashboard</span> using their email and password. They are directly linked to your chamber and will only see your patient appointments, serial queues, and booking confirmations.
           </p>
         </div>
       </div>

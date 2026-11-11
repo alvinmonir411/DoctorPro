@@ -18,14 +18,15 @@ import {
   X,
   ExternalLink,
   ShieldCheck,
-  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
+import { DashboardLoginView } from "@/components/dashboard/DashboardLoginView";
 import { toast } from "sonner";
 
-export default function AdminLayout({
+/** Role-based shell for `/dashboard/*` that renders inline sign-in until authenticated. */
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -35,87 +36,102 @@ export default function AdminLayout({
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isLoginPage = pathname === "/admin/login";
-
-  // Redirect to login if not authenticated and not on login page
-  useEffect(() => {
-    if (!isLoginPage && !isLoading && !isAuthenticated) {
-      router.push("/admin/login");
-    }
-  }, [isLoginPage, isLoading, isAuthenticated, router]);
-
-  const userRole = (user?.role || "ADMIN").toUpperCase();
+  const userRole = (user?.role || "").toUpperCase();
+  const isRecognizedRole =
+    userRole === "ADMIN" || userRole === "DOCTOR" || userRole === "DOCTOR_ASSISTANT";
 
   const navItems = useMemo(() => {
     if (userRole === "DOCTOR") {
       return [
-        { label: "Doctor Dashboard", href: "/admin", icon: LayoutDashboard },
-        { label: "My Appointments", href: "/admin/appointments", icon: Calendar },
-        { label: "My Profile & Hours", href: "/admin/doctors", icon: Stethoscope },
-        { label: "My Assistants", href: "/admin/assistants", icon: ShieldCheck },
-        { label: "My Patients", href: "/admin/patients", icon: Users },
+        { label: "Doctor Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { label: "My Appointments", href: "/dashboard/appointments", icon: Calendar },
+        { label: "My Profile & Hours", href: "/dashboard/doctors", icon: Stethoscope },
+        { label: "My Assistants", href: "/dashboard/assistants", icon: ShieldCheck },
+        { label: "My Patients", href: "/dashboard/patients", icon: Users },
       ];
     }
     if (userRole === "DOCTOR_ASSISTANT") {
       return [
-        { label: "Assistant Desk", href: "/admin", icon: LayoutDashboard },
-        { label: "Appointment Queue", href: "/admin/appointments", icon: Calendar },
-        { label: "Assigned Doctor", href: "/admin/doctors", icon: Stethoscope },
-        { label: "My Patients", href: "/admin/patients", icon: Users },
+        { label: "Assistant Desk", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Appointment Queue", href: "/dashboard/appointments", icon: Calendar },
+        { label: "Assigned Doctor", href: "/dashboard/doctors", icon: Stethoscope },
+        { label: "My Patients", href: "/dashboard/patients", icon: Users },
       ];
     }
-    // ADMIN (Full access)
-    return [
-      { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-      { label: "Appointments", href: "/admin/appointments", icon: Calendar },
-      { label: "Doctors", href: "/admin/doctors", icon: Stethoscope },
-      { label: "Staff & Roles", href: "/admin/staff", icon: ShieldCheck },
-      { label: "Patients", href: "/admin/patients", icon: Users },
-      { label: "Services", href: "/admin/services", icon: Activity },
-      { label: "Departments", href: "/admin/departments", icon: Building2 },
-      { label: "Health Blog", href: "/admin/blog", icon: FileText },
-      { label: "Gallery", href: "/admin/gallery", icon: ImageIcon },
-      { label: "Settings", href: "/admin/settings", icon: Settings },
-    ];
+    if (userRole === "ADMIN") {
+      return [
+        { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
+        { label: "Doctors", href: "/dashboard/doctors", icon: Stethoscope },
+        { label: "Staff & Roles", href: "/dashboard/staff", icon: ShieldCheck },
+        { label: "Patients", href: "/dashboard/patients", icon: Users },
+        { label: "Services", href: "/dashboard/services", icon: Activity },
+        { label: "Departments", href: "/dashboard/departments", icon: Building2 },
+        { label: "Health Blog", href: "/dashboard/blog", icon: FileText },
+        { label: "Gallery", href: "/dashboard/gallery", icon: ImageIcon },
+        { label: "Settings", href: "/dashboard/settings", icon: Settings },
+      ];
+    }
+    return [];
   }, [userRole]);
 
   const isRouteAllowed = useMemo(() => {
-    if (isLoginPage || !isAuthenticated || userRole === "ADMIN") return true;
+    if (!isAuthenticated || !isRecognizedRole) return false;
+    if (userRole === "ADMIN") return true;
     return navItems.some((item) =>
-      item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href)
+      item.href === "/dashboard"
+        ? pathname === "/dashboard"
+        : pathname.startsWith(item.href)
     );
-  }, [isLoginPage, isAuthenticated, userRole, navItems, pathname]);
+  }, [isAuthenticated, isRecognizedRole, userRole, navItems, pathname]);
 
   useEffect(() => {
-    if (!isLoginPage && !isLoading && isAuthenticated && !isRouteAllowed) {
-      router.replace("/admin");
+    if (!isLoading && isAuthenticated && isRecognizedRole && !isRouteAllowed) {
+      router.replace("/dashboard");
     }
-  }, [isLoginPage, isLoading, isAuthenticated, isRouteAllowed, router]);
+  }, [isLoading, isAuthenticated, isRecognizedRole, isRouteAllowed, router]);
 
   const roleTitle =
     userRole === "DOCTOR"
-      ? "Doctor Portal"
+      ? "Doctor Dashboard"
       : userRole === "DOCTOR_ASSISTANT"
       ? "Assistant Desk"
-      : "Admin Portal";
-
-  // If on admin login page, don't wrap with dashboard layout
-  if (isLoginPage) {
-    return <>{children}</>;
-  }
+      : "Admin Dashboard";
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
-        Loading DoctorPro Portal...
+        Loading DoctorPro Dashboard...
       </div>
     );
   }
 
   if (!isAuthenticated) {
+    return <DashboardLoginView />;
+  }
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Signed Out", {
+      description: "You have been signed out of the dashboard.",
+    });
+    router.push("/dashboard");
+  };
+
+  if (!isRecognizedRole) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
-        Redirecting to Login...
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 text-center space-y-4">
+        <p className="text-sm font-semibold text-foreground">
+          This account role does not have access to the dashboard.
+        </p>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={handleLogout}>
+            Sign Out
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/">Back to Home</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -123,21 +139,13 @@ export default function AdminLayout({
   if (!isRouteAllowed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
-        Redirecting to your portal dashboard...
+        Redirecting to your role dashboard...
       </div>
     );
   }
 
-  const handleLogout = () => {
-    logout();
-    toast.success("Signed Out", {
-      description: "You have been logged out of the portal.",
-    });
-    router.push("/admin/login");
-  };
-
   const isActive = (href: string) => {
-    if (href === "/admin") return pathname === "/admin";
+    if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
   };
 
@@ -268,7 +276,7 @@ export default function AdminLayout({
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-sm text-foreground">
                 {userRole === "DOCTOR"
-                  ? "Doctor Practice Portal"
+                  ? "Doctor Practice Dashboard"
                   : userRole === "DOCTOR_ASSISTANT"
                   ? "Assistant Desk & Queue"
                   : "Clinic Administration"}

@@ -240,7 +240,7 @@ export default function DoctorRegisterPage() {
 
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button asChild className="w-full sm:w-auto bg-[#0a1e3b] hover:bg-[#07162c] text-white rounded-full">
-              <Link href="/admin/login">Go to Staff Login</Link>
+              <Link href="/dashboard">Go to Dashboard Login</Link>
             </Button>
             <Button asChild variant="outline" className="w-full sm:w-auto rounded-full">
               <Link href="/">Back to Home</Link>
@@ -664,7 +664,7 @@ export default function DoctorRegisterPage() {
                   variant="outline"
                   className="w-full sm:w-auto rounded-xl"
                 >
-                  <Link href="/admin/login">Already Registered? Sign In</Link>
+                  <Link href="/dashboard">Already Registered? Sign In</Link>
                 </Button>
 
                 <Button

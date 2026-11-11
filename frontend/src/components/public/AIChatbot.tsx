@@ -73,8 +73,8 @@ export function AIChatbot() {
     }
   }, [messages, loading, isOpen]);
 
-  // Hide floating public assistant inside admin panel
-  if (pathname?.startsWith("/admin")) {
+  // Hide floating public assistant inside dashboard / admin panels
+  if (pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin")) {
     return null;
   }
 

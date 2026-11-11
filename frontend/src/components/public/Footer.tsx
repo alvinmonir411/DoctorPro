@@ -108,9 +108,6 @@ export function PublicFooter() {
         <div className="mt-12 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
           <p>© {new Date().getFullYear()} DoctorPro. All rights reserved.</p>
           <div className="flex items-center gap-6">
-            <Link href="/admin/login" className="hover:text-white transition-colors text-slate-300 font-medium">
-              Staff Portal Login
-            </Link>
             <Link href="/contact" className="hover:text-white transition-colors">
               Privacy Policy
             </Link>

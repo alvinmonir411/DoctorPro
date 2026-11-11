@@ -11,7 +11,6 @@ import {
   Menu,
   X,
   Phone,
-  UserCheck,
   Stethoscope,
   Activity,
 } from "lucide-react";
@@ -62,12 +61,6 @@ export function PublicNavbar() {
                 Live Serial Tracker
               </Link>
 
-              <Link
-                href="/admin/login"
-                className="inline-flex items-center gap-1 text-slate-300 hover:text-white transition-colors"
-              >
-                <UserCheck className="h-3.5 w-3.5 text-sky-400" /> Staff Portal
-              </Link>
               <button
                 onClick={() => setShowTopBar(false)}
                 className="text-slate-400 hover:text-white text-xs ml-2 cursor-pointer"
@@ -178,11 +171,6 @@ export function PublicNavbar() {
               <Button asChild variant="outline" className="w-full h-11 rounded-full text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50">
                 <Link href="/live-queue" onClick={() => setMobileMenuOpen(false)}>
                   Live Serial Tracker
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="w-full h-11 rounded-full text-xs">
-                <Link href="/admin/login" onClick={() => setMobileMenuOpen(false)}>
-                  Staff Portal
                 </Link>
               </Button>
             </div>

@@ -331,13 +331,13 @@ export default function AdminDashboardPage() {
         <div className="flex items-center gap-2">
           {userRole === "ADMIN" && (
             <Button asChild size="sm" variant="outline" className="rounded-xl text-xs">
-              <Link href="/admin/staff">
+              <Link href="/dashboard/staff">
                 <ShieldCheck className="mr-1.5 h-3.5 w-3.5 text-primary" /> Staff & Roles
               </Link>
             </Button>
           )}
           <Button asChild size="sm" className="bg-primary hover:bg-primary/90 rounded-xl text-xs">
-            <Link href="/admin/appointments">
+            <Link href="/dashboard/appointments">
               <Calendar className="mr-1.5 h-3.5 w-3.5" /> Appointments Queue
             </Link>
           </Button>
@@ -375,7 +375,7 @@ export default function AdminDashboardPage() {
                 </Button>
                 {userRole === "DOCTOR" && (
                   <Button asChild variant="outline" size="sm" className="rounded-xl text-xs">
-                    <Link href="/admin/assistants">
+                    <Link href="/dashboard/assistants">
                       <ShieldCheck className="h-3.5 w-3.5 text-indigo-600 mr-1" /> Assistants
                     </Link>
                   </Button>
@@ -822,7 +822,7 @@ export default function AdminDashboardPage() {
               </p>
             </div>
             <Button asChild variant="ghost" size="sm" className="text-xs text-primary">
-              <Link href="/admin/appointments">
+              <Link href="/dashboard/appointments">
                 View Full Queue <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </Button>

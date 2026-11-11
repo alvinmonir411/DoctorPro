@@ -1,21 +1,20 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Stethoscope, Lock, Mail, AlertCircle, ArrowLeft, Shield } from "lucide-react";
+import { Stethoscope, Lock, Mail, AlertCircle, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
-export default function AdminLoginPage() {
-  const router = useRouter();
+/** Inline sign-in screen displayed at `/dashboard` until a staff member authenticates. */
+export function DashboardLoginView() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("admin@doctorpro.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,14 +24,14 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       toast.success("Signed In Successfully", {
-        description: "Welcome to DoctorPro Portal.",
+        description: "Loading your role-based dashboard...",
       });
-      router.push("/admin");
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg =
-        err?.message || "Invalid credentials. Please verify your email and password.";
+        (err instanceof Error && err.message) ||
+        "Invalid credentials. Please verify your email and password.";
       setError(msg);
       toast.error("Sign In Failed", { description: msg });
     } finally {
@@ -52,22 +51,30 @@ export default function AdminLoginPage() {
               Doctor<span className="text-primary">Pro</span>
             </span>
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Doctor & Staff Portal</h1>
-          <p className="text-xs text-muted-foreground">Sign in with administrator, doctor, or assistant credentials</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Dashboard Sign In
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Sign in with your administrator, doctor, or assistant credentials
+          </p>
         </div>
 
         <Card className="rounded-2xl border-border/80 shadow-lg">
           <CardContent className="p-6 md:p-8 space-y-4">
             {error && (
-              <div className={`flex items-start gap-2.5 p-3.5 text-xs rounded-xl border ${
-                error.toLowerCase().includes("pending")
-                  ? "bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-200 border-amber-300"
-                  : "bg-destructive/10 text-destructive border-destructive/20"
-              }`}>
+              <div
+                className={`flex items-start gap-2.5 p-3.5 text-xs rounded-xl border ${
+                  error.toLowerCase().includes("pending")
+                    ? "bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-200 border-amber-300"
+                    : "bg-destructive/10 text-destructive border-destructive/20"
+                }`}
+              >
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-semibold block">
-                    {error.toLowerCase().includes("pending") ? "Approval Required" : "Authentication Notice"}
+                    {error.toLowerCase().includes("pending")
+                      ? "Approval Required"
+                      : "Authentication Notice"}
                   </span>
                   <span>{error}</span>
                 </div>
@@ -76,11 +83,16 @@ export default function AdminLoginPage() {
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">Email Address</Label>
+                <Label htmlFor="dashboard-login-email" className="text-xs">
+                  Email Address
+                </Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    id="dashboard-login-email"
                     type="email"
+                    placeholder="you@doctorpro.com"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -90,22 +102,22 @@ export default function AdminLoginPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs">Password</Label>
+                <Label htmlFor="dashboard-login-password" className="text-xs">
+                  Password
+                </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
+                    id="dashboard-login-password"
                     type="password"
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     className="pl-9 h-11 rounded-xl"
                   />
                 </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-[11px] text-muted-foreground flex items-center justify-between">
-                <span>Default Admin Login:</span>
-                <span className="font-mono text-primary font-medium">admin@doctorpro.com / admin123</span>
               </div>
 
               <Button
@@ -117,7 +129,9 @@ export default function AdminLoginPage() {
               </Button>
 
               <div className="pt-3 border-t text-center space-y-1">
-                <p className="text-xs text-muted-foreground">Are you a practicing Doctor or Consultant?</p>
+                <p className="text-xs text-muted-foreground">
+                  Are you a practicing Doctor or Consultant?
+                </p>
                 <Link
                   href="/doctor/register"
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
